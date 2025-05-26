@@ -22,25 +22,17 @@ library(circlize)
 rm(list = ls())
 gc()
 
+
 colormap_group <- c("#b2df8a", "#a6cee3", "#1f78b4") 
 names(colormap_group) <- c("HD", "before_FMT", "after_FMT") 
 
 comparisons_grp_rm <- c("pre_post_FMT" = "donor", "pre_donor" = "after_FMT", "post_donor" = "before_FMT")
-
-```
-
-
-# Import data
-
-
-```{r}
-scenith_dt <- read_tsv(file = "../data/scenith_data.tsv", col_names = T, show_col_types = F)
-
 pairwise_FMT_dt <- read_tsv(file = "../data/FMT_pairing.tsv", col_names = T, show_col_types = F)  %>% 
     mutate(FMT_group = paste0("FMT_grp_", row_number())) %>% 
     pivot_longer(cols = c("donor", "before_FMT", "after_FMT"), values_to = "sample")
 
 ```
+
 
 
 # Plan
@@ -377,6 +369,94 @@ ggplot(data = plot_dt,
 ```
 
 
+
+
+
+
+
+# SCENITH
+
+Pariwise test before after
+
+```{r}
+
+
+
+scenith_dt <- read_tsv(file = "../data/scenith_data.tsv", col_names = T, show_col_types = F)
+
+test_dt <- scenith_dt %>% 
+    pivot_longer(-c(type_measure, group, sample), names_to = "cell_type", values_to = "SCENITH_measure") %>% 
+    filter(group != "HD") %>%
+    left_join(pairwise_FMT_dt %>% filter(data == "blood_scenith", name != "donor") %>% select(FMT_group, sample)) %>%
+    mutate(cell_measure = paste(cell_type, type_measure, sep="__"))
+
+res_test <- lapply(unique(test_dt$cell_measure), function(x){
+
+                    tmp <- test_dt %>% filter(cell_measure == x) %>%
+                        group_by(FMT_group) %>% filter(n() ==  2) %>% arrange(FMT_group) %>% ungroup()
+                    
+                    test <- wilcox_test(data = tmp, formula = SCENITH_measure ~ group, paired = TRUE)
+                    effsize <- wilcox_effsize(data = tmp, formula = SCENITH_measure ~ group, paired = TRUE)
+                    
+                    return(tibble(cell_measure = x, 
+                                  wilcox_p = test$p, 
+                                  wilcox_effsize = effsize$effsize))
+}) %>% do.call(., what = rbind) %>% mutate(wilcox_Padj = p.adjust(wilcox_p, method = "BH"))
+
+
+res_test %>% filter(wilcox_Padj < 0.05)
+
+```
+
+
+
+
+Overall doorbell plot with shift to mean of HD
+
+
+
+```{r}
+scenith_dt <- read_tsv(file = "../data/scenith_data.tsv", col_names = T, show_col_types = F)
+
+plot_dt <- scenith_dt %>% select(-sample) %>% 
+    pivot_longer(-c(type_measure, group), names_to = "cell_type", values_to = "SCENITH_measure") %>%
+    group_by(type_measure, group, cell_type) %>% summarise(avg_SCENITH = mean(SCENITH_measure)) %>%
+    pivot_wider(id_cols = c(type_measure, cell_type), 
+                                   values_from = avg_SCENITH, 
+                                   names_from = group, names_prefix = "avg_SCENITH_") %>%
+    mutate(shift_after_FMT = avg_SCENITH_HD - avg_SCENITH_after_FMT, 
+           shift_before_FMT = avg_SCENITH_HD - avg_SCENITH_before_FMT)
+
+
+plot_dt %>% select(-avg_SCENITH_HD, -avg_SCENITH_after_FMT, -avg_SCENITH_before_FMT) %>%
+    pivot_longer(cols = c(shift_after_FMT, shift_before_FMT), 
+                 names_to = "before_after", values_to = "shift") %>%
+ggplot(data = ., 
+       aes(x = shift, y = reorder(cell_type, shift))) + 
+     geom_segment( aes(x=shift, xend=0, y=cell_type, yend=cell_type), color="grey") +
+        geom_point(aes(shape = before_after, fill = before_after), size = 3) + 
+    geom_vline(xintercept = 0) + 
+      scale_shape_manual(values = c("shift_after_FMT" = 21, "shift_before_FMT" = 23)) +
+    scale_fill_manual(values = c("shift_after_FMT" = "#1f78b4",  "shift_before_FMT" = "#a6cee3")) +
+    theme_bw() + 
+    ylab("") + xlab("Average SCENITH measurement") +
+    facet_grid(cols = vars(type_measure), scale = "free")
+
+```
+
+
+
+
+
+# Targeted Correlations
+
+do correlation beetween stuff and visualize as graph
+build matrix with pariwise correlation of elements (metabo, spc, scenith)
+
+1 element : 
+- scenith, 1 type measure, 
+- species abundance
+- metabo in bodysite
 
 
 
