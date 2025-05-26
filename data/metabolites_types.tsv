@@ -1,0 +1,59 @@
+metabolite	type	TRP_pathways	bile_acid_group	bile_acid_conjugated
+Malic Acid	Krebs_derivatives			
+Glucose	Krebs_derivatives			
+Lactic acid	Krebs_derivatives			
+Itaconic Acid	Krebs_derivatives			
+Succinic Acid	Krebs_derivatives			
+Fumaric Acid	Krebs_derivatives			
+Citric Acid	Krebs_derivatives			
+Isocitric Acid	Krebs_derivatives			
+Aconitic Acid	Krebs_derivatives			
+Ketoglutaric Acid	Krebs_derivatives			
+Picolinic acid	TRP_derivatives	kynurenine_pathway		
+Quinolinic acid	TRP_derivatives	kynurenine_pathway		
+3-OH-Kynurenine	TRP_derivatives	kynurenine_pathway		
+Serotonine	TRP_derivatives	serotonin_pathway		
+5-OH-Tryptophane	TRP_derivatives	serotonin_pathway		
+Kynurenine	TRP_derivatives	kynurenine_pathway		
+3-OH-Anthranilic acid	TRP_derivatives	kynurenine_pathway		
+Tryptamine	TRP_derivatives	indole_pathway		
+Tryptophane	TRP_derivatives	NA		
+5-OH-Indole acetic acid	TRP_derivatives	indole_pathway		
+Indole-3-Sulfate	TRP_derivatives	indole_pathway		
+N-acetyl-serotonine	TRP_derivatives	serotonin_pathway		
+Xanthurenic acid	TRP_derivatives	kynurenine_pathway		
+Indole-3-acetamide	TRP_derivatives	indole_pathway		
+Kynurenic acid	TRP_derivatives	kynurenine_pathway		
+Indole-3-Lactic acid	TRP_derivatives	indole_pathway		
+Indole-3-Aldehyde	TRP_derivatives	indole_pathway		
+Indole-3-Acetic acid	TRP_derivatives	indole_pathway		
+Tryptophol	TRP_derivatives	indole_pathway		
+Melatonine	TRP_derivatives	serotonin_pathway		
+Indole-3-propionic acid	TRP_derivatives	indole_pathway		
+Indole	TRP_derivatives	indole_pathway		
+Acetic Acid	SCFA_derivatives			
+Propionic Acid	SCFA_derivatives			
+Butyric Acid	SCFA_derivatives			
+IsoButyric Acid	SCFA_derivatives			
+Valeric Acid	SCFA_derivatives			
+IsoValeric Acid	SCFA_derivatives			
+THCA	biliary_acids		primary_bile_acid	conjugated
+GHCA	biliary_acids		primary_bile_acid	conjugated
+TCA	biliary_acids		primary_bile_acid	conjugated
+GUDCA	biliary_acids		secondary_bile_acid	conjugated
+CA-S	biliary_acids		primary_bile_acid	conjugated
+GCA	biliary_acids		primary_bile_acid	conjugated
+TUDCA	biliary_acids		secondary_bile_acid	conjugated
+TCDCA	biliary_acids		primary_bile_acid	conjugated
+HCA	biliary_acids		primary_bile_acid	deconjugated
+UDCA	biliary_acids		secondary_bile_acid	deconjugated
+TDCA	biliary_acids		secondary_bile_acid	conjugated
+GCDCA	biliary_acids		primary_bile_acid	conjugated
+CA	biliary_acids		primary_bile_acid	deconjugated
+GDCA	biliary_acids		secondary_bile_acid	conjugated
+TLCA	biliary_acids		secondary_bile_acid	conjugated
+LCA-S	biliary_acids		secondary_bile_acid	conjugated
+CDCA	biliary_acids		primary_bile_acid	deconjugated
+GLCA	biliary_acids		secondary_bile_acid	conjugated
+DCA	biliary_acids		secondary_bile_acid	deconjugated
+LCA	biliary_acids		secondary_bile_acid	deconjugated

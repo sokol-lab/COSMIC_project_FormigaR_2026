@@ -1,0 +1,382 @@
+---
+title: "Analysis scenith data"
+author: "Léonard Dubois, Rodrigo Formiga and Harry Sokol"
+date: "2025"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(phyloseq)
+library(microViz)
+library(viridis)
+library(vegan)
+library(ggsignif)
+library(rstatix)
+library(ComplexHeatmap)
+library(RColorBrewer)
+library(circlize)
+
+rm(list = ls())
+gc()
+
+colormap_group <- c("#b2df8a", "#a6cee3", "#1f78b4") 
+names(colormap_group) <- c("HD", "before_FMT", "after_FMT") 
+
+comparisons_grp_rm <- c("pre_post_FMT" = "donor", "pre_donor" = "after_FMT", "post_donor" = "before_FMT")
+
+```
+
+
+# Import data
+
+
+```{r}
+scenith_dt <- read_tsv(file = "../data/scenith_data.tsv", col_names = T, show_col_types = F)
+
+pairwise_FMT_dt <- read_tsv(file = "../data/FMT_pairing.tsv", col_names = T, show_col_types = F)  %>% 
+    mutate(FMT_group = paste0("FMT_grp_", row_number())) %>% 
+    pivot_longer(cols = c("donor", "before_FMT", "after_FMT"), values_to = "sample")
+
+```
+
+
+# Plan
+
+For each type of data (Microbiome, metabo, scenigth, Humann) look for differences and evolution between:
+- Pre FMT and Post FMT
+- Pre FMT and Healthy donors
+- Healthy donors and post FMT
+And intersect between these test
+
+Measure the shift (pre post FMT) compared to the mean of Healthy donors
+
+
+Then look for engraftment of species (% of abundance of species coming from donor)
+
+
+
+# Microbiota data
+
+
+## DATA
+
+```{r}
+mpa4_table <- read_tsv(file = "../data/profile_mpa4_vJun23_FMT_Cdiff.tsv", col_names = T, show_col_types = F)
+
+rname <- mpa4_table$clade
+mpa4_table <- as.matrix(mpa4_table %>% select(-clade))
+rownames(mpa4_table) <- rname
+
+mpa4_table_spc <- mpa4_table[ grepl("s__[A-Za-z_]+$", rownames(mpa4_table) ), ]
+```
+
+
+## tests
+
+```{r}
+
+spc_keep <- apply(mpa4_table_spc, 1, function(x) sum(x > 0)/ncol(mpa4_table_spc) >= 0.3)
+mpa_dt_light <- mpa4_table_spc[spc_keep , ]
+
+
+median_relab <- lapply(rownames(mpa_dt_light), function(x){
+    tmp <- pairwise_FMT_dt %>% filter(data == "shotgun_metagenomics") %>% distinct(name, sample) %>% filter( sample %in% colnames(mpa_dt_light)) 
+    tmp$spc_abundance <- mpa_dt_light[x, tmp$sample]
+    res <- tmp %>% group_by(name) %>% 
+        summarise(med_relab = quantile(spc_abundance, 0.9)) %>%
+        mutate(spc = str_remove(string = x, ".*s__"))
+    return(res)
+}) %>% do.call(., what= rbind)
+
+
+
+res_microbiota <- lapply(names(comparisons_grp_rm), 
+                         function(comparison){
+                             #grp_torm = "donor"
+                             tmp <- pairwise_FMT_dt %>% filter(data == "shotgun_metagenomics")  %>% 
+                                 filter(name != comparisons_grp_rm[comparison], sample %in% colnames(mpa4_table_spc)) 
+                             tmp <- tmp %>% group_by(FMT_group) %>% filter(n() == 2) %>% ungroup()
+                             mpa_dt <- mpa_dt_light[, tmp$sample]
+                           
+                             res_test <- lapply(rownames(mpa_dt), function(x){
+                                 tmp$spc_abundance <- mpa_dt[x, ]
+                                 if(var(tmp$spc_abundance) == 0){ return(NULL)}
+                                 test <- wilcox_test(data = tmp, formula = spc_abundance ~ name, paired = TRUE)
+                                 #effsize <- wilcox_effsize(data = tmp, formula = spc_abundance ~ name, paired = TRUE)
+                                 diff_median_relab <- tmp %>% group_by(name) %>% 
+                                     summarise(median_relab = median(spc_abundance)) %>% 
+                                     pull(median_relab) %>% diff()
+                                 return(tibble(spc = x, 
+                                               comparison = comparison, 
+                                               wilcox_p = test$p, 
+                                               diff_median_relab = diff_median_relab))
+                                 
+                             }) %>% do.call(., what= rbind)
+                             res_test$Padj <- p.adjust(res_test$wilcox_p, method = "BH")
+                             return(res_test)
+                         }) %>% do.call(., what= rbind)
+
+```
+
+main visualization
+
+```{r}
+
+
+tmp <- res_microbiota %>% filter(comparison == "pre_post_FMT") %>% 
+    mutate(restored = ifelse(diff_median_relab < 0, "restored", "depleted")) %>% 
+    mutate(restored = ifelse(Padj < 0.05, restored, "NS")) %>% 
+    select(spc, restored)
+
+
+tmp2 <- res_microbiota %>% filter(comparison == "post_donor") %>% 
+    mutate(type_restoration = ifelse(diff_median_relab < 0, "over", "partial")) %>% 
+    mutate(type_restoration = ifelse(Padj < 0.05, type_restoration, "normal")) %>%
+    select(spc, type_restoration)
+
+    
+tmp <- full_join(tmp, tmp2) %>% mutate(spc = str_remove(string = spc, ".*s__")) %>% 
+    mutate(FMT_effect = paste(restored, type_restoration)) %>% filter(!grepl(FMT_effect, pattern = "NS"))
+
+plot_dt <- median_relab %>% left_join(tmp) %>% na.omit()
+
+
+ggplot(data = plot_dt, 
+       aes(x = med_relab, y = reorder(spc, med_relab))) +
+    geom_point(aes(shape = name, fill = name), size = 2) + 
+    scale_shape_manual(values = c("after_FMT" = 21, "donor" = 22,  "before_FMT" = 23)) +
+    scale_fill_manual(values = c("after_FMT" = "#1f78b4", "donor" = "#b2df8a",  "before_FMT" = "#a6cee3")) +
+    theme_bw() + scale_x_log10() +
+    ylab("") + xlab("90th percentile of relative abundance (log10)") +
+    facet_grid(rows = vars(FMT_effect), 
+               scale = "free", space = "free") + 
+    theme(strip.text.y.right = element_text(angle = 0), 
+          strip.background = element_rect(linetype = "blank",
+                                           fill = "white"), 
+          legend.position = "bottom", 
+          axis.ticks.y = element_blank(), 
+          axis.text.y = element_text(face = "italic"))
+
+
+```
+
+
+## misc pieces of code
+
+```{r}
+
+res_microbiota_simple <- res_microbiota %>% mutate(diff_median_relab = ifelse(Padj < 0.05, diff_median_relab, 0)) %>% 
+    mutate(shift = ifelse(diff_median_relab > 0, "up", "down")) %>%
+    mutate(shift = ifelse(diff_median_relab == 0, "NS", shift))  %>%
+    arrange(spc, comparison) %>% group_by(spc) %>% summarise(group_shift = paste(shift, collapse = "__")) %>%
+    filter(group_shift != "NS__NS__NS") %>% 
+    mutate(spc = str_remove(string = spc, ".*s__")) %>% 
+    mutate(FMT_effect = case_when(prel(group_shift) ~ )) 
+    
+
+plot_dt <- median_relab %>% left_join(res_microbiota_simple %>% distinct(spc, group_shift)) %>% na.omit()
+
+
+ggplot(data = plot_dt, 
+       aes(x = med_relab, y = reorder(spc, med_relab))) +
+    geom_point(aes(shape = name, fill = name), size = 2) + 
+    scale_shape_manual(values = c("after_FMT" = 21, "donor" = 22,  "before_FMT" = 23)) +
+    scale_fill_manual(values = c("after_FMT" = "#1f78b4", "donor" = "#b2df8a",  "before_FMT" = "#a6cee3")) +
+    theme_bw() + scale_x_log10() +
+    facet_grid(rows = vars(group_shift), 
+               scale = "free", space = "free")
+```
+
+
+Heatmap visualisation
+
+```{r}
+
+res_microbiota_simple <- res_microbiota_simple %>% 
+    group_by(spc) %>% filter(min(Padj) < 0.05) %>%
+    mutate(spc = str_remove(pattern = ".*s__", spc)) %>% 
+    mutate(diff_median_relab = ifelse(diff_median_relab > 0, 1, -1)) %>%
+    mutate(diff_median_relab = ifelse(Padj < 0.05, diff_median_relab, 0))
+
+shift_dt <- res_microbiota_simple %>% 
+    select(spc, comparison, diff_median_relab) %>% 
+    pivot_wider(names_from = comparison, values_from = diff_median_relab) %>%
+    as.data.frame()
+rownames(shift_dt) <- shift_dt$spc
+shift_dt <- shift_dt %>% select(-spc)
+
+
+pval_dt <- res_microbiota_simple %>% 
+    select(spc, comparison, Padj) %>% 
+    pivot_wider(names_from = comparison, values_from = Padj) %>%
+    as.data.frame()
+rownames(pval_dt) <- pval_dt$spc
+pval_dt <- pval_dt %>% select(-spc)
+
+col_fun_HM <- colorRamp2(c("blue", "white", "red"),
+                             breaks = c(max(shift_dt), 0, min(shift_dt)))
+h <- Heatmap(matrix = shift_dt, 
+            col = col_fun_HM,
+            na_col = "white",
+                 
+            width = unit(0.30, "cm") * ncol(shift_dt), 
+            height = unit(0.30, "cm") * nrow(shift_dt),
+            
+            column_title_gp = gpar(fontsize = 12),
+            column_title_side = "top", 
+            cluster_rows = T, 
+            show_row_dend = F,
+            cluster_columns = F, 
+            show_column_names = T,
+            show_row_names = T, row_title = NULL,
+            
+            border = T,                
+            column_gap = unit(1, "mm"), 
+            row_names_gp = gpar(fontsize = 9, fontface= "italic"),     
+            column_names_gp = gpar(fontsize = 9),
+            
+            rect_gp = gpar(col = "white", lwd = 0.5),
+            show_heatmap_legend =T,
+            row_names_side = "left", 
+            
+            cell_fun = function(j, i, x, y, width, height, fill) {
+                if(!is.na(pval_dt[i, j] )){
+                    if(pval_dt[i, j] < 0.1){
+                        color_star <- ifelse(abs(shift_dt[i, j]) > 0.5, "white", "black")
+                        grid.text("*", x, y -height/3, gp = gpar(fontsize = 12, col = color_star))
+                    }
+                }
+            })
+
+draw(h, heatmap_legend_side = "right", )
+
+
+```
+
+
+
+
+
+
+# Metabolites
+
+Careful Cosmic_9 missing from metabo data feces
+
+## DATA
+
+```{r}
+
+metabolomic_dt <- read_tsv(file = "../data/all_metabo_dt.tsv", col_names = T, show_col_types = F) 
+#    left_join(pairwise_FMT_dt %>% distinct(FMT_group, sample, name)) %>% as.data.frame()
+
+metabolomic_dt_limits <- read_tsv(file = "../data/all_metabo_dt_limit_detection.tsv", col_names = T, show_col_types = F) 
+
+metabo_type <- read_tsv(file = "../data/metabolites_types.tsv", col_names = T, show_col_types = F)
+```
+
+
+
+```{r}
+
+res_metabo <- lapply(names(comparisons_grp_rm), 
+                         function(comparison){
+                             #print(comparison)
+                             lapply(c("feces", "plasma"), function(SITE){
+                                 #print(SITE)
+                                 metabo_dt <- metabolomic_dt_limits %>%
+                                     filter(bodysite == SITE)  %>% select(-bodysite)
+                                 metabo_dt <- t(data.frame(metabo_dt, row.names = "sample"))
+                                 
+                                 if(SITE == "feces"){
+                                     tmp <- pairwise_FMT_dt %>% filter(data == "shotgun_metagenomics")                                          
+                                 } else {
+                                      tmp <- pairwise_FMT_dt %>% filter(data == "blood_scenith")  
+                                 }
+                                 
+                                 tmp <- tmp %>% filter(name != comparisons_grp_rm[comparison]) %>% 
+                                     filter(sample %in% colnames(metabo_dt)) %>%
+                                     group_by(FMT_group) %>% filter(n() == 2) %>% ungroup()
+                                 metabo_dt <- metabo_dt[, tmp$sample] %>% na.omit()
+                                 
+                                 res_test <- lapply(rownames(metabo_dt), function(x){
+                                     #print(x)
+                                     tmp$concentration <- metabo_dt[x, ]
+                                     if(var(tmp$concentration) == 0){ return(NULL)}
+                                     test <- wilcox_test(data = tmp, formula = concentration ~ name, paired = TRUE)
+                                     diff_median_conc <- tmp %>% group_by(name) %>% 
+                                         summarise(median_conc = median(concentration)) %>% 
+                                         pull(median_conc) %>% diff()
+                                     return(tibble(metabolites = x, 
+                                                   comparison = comparison, 
+                                                   wilcox_p = test$p, 
+                                                   diff_median_conc = diff_median_conc, 
+                                                   bodysite = SITE))
+                                     
+                                 }) %>% do.call(., what= rbind)
+                                 res_test$Padj <- p.adjust(res_test$wilcox_p, method = "BH")
+                                 return(res_test)
+                             }) %>% do.call(., what = rbind)
+                         }) %>% do.call(., what = rbind)
+
+
+
+median_conc <-  left_join(pairwise_FMT_dt %>% select(-data, -FMT_group), metabolomic_dt_limits) %>% distinct()
+median_conc <- median_conc %>% pivot_longer(-c(name, sample, bodysite), names_to = "metabolites", values_to = "cocentration")
+median_conc <- median_conc %>% group_by(name, bodysite, metabolites) %>% summarise(median_conc = median(cocentration)) 
+    
+
+
+
+```
+
+
+main visualization
+
+```{r}
+
+
+
+tmp <- res_metabo %>% filter(comparison == "pre_post_FMT") %>% 
+    group_by(bodysite) %>%
+    mutate(restored = ifelse(diff_median_conc < 0, "restored", "depleted")) %>% 
+    mutate(restored = ifelse(Padj < 0.05, restored, "NS")) %>% 
+    select(metabolites, restored)
+
+
+tmp2 <- res_metabo %>% filter(comparison == "post_donor") %>% 
+    group_by(bodysite) %>%
+    mutate(type_restoration = ifelse(diff_median_conc < 0, "over", "partial")) %>% 
+    mutate(type_restoration = ifelse(Padj < 0.05, type_restoration, "normal")) %>%
+    select(metabolites, type_restoration)
+
+    
+tmp <- full_join(tmp, tmp2) %>% mutate(FMT_effect = paste(restored, type_restoration)) %>% filter(!grepl(FMT_effect, pattern = "NS"))
+
+plot_dt <- median_conc %>% mutate(metabolites = str_replace_all(string = metabolites, pattern = "-| ", ".")) %>% left_join(tmp) %>% na.omit()
+
+
+ggplot(data = plot_dt, 
+       aes(x = median_conc, y = reorder(metabolites, median_conc))) +
+    geom_point(aes(shape = name, fill = name), size = 2) + 
+    scale_shape_manual(values = c("after_FMT" = 21, "donor" = 22,  "before_FMT" = 23)) +
+    scale_fill_manual(values = c("after_FMT" = "#1f78b4", "donor" = "#b2df8a",  "before_FMT" = "#a6cee3")) +
+    theme_bw() + scale_x_log10() +
+    ylab("") + xlab("Median concentration (log10)") +
+    facet_grid(rows = vars(FMT_effect), cols = vars(bodysite),
+               scale = "free", space = "free") + 
+    theme(strip.text.y.right = element_text(angle = 0), 
+          strip.background = element_rect(linetype = "blank",
+                                           fill = "white"), 
+          legend.position = "bottom", 
+          axis.ticks.y = element_blank())
+
+
+```
+
+
+
+
+

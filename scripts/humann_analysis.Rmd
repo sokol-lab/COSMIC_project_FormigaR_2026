@@ -1,0 +1,343 @@
+---
+title: "Untitled"
+author: "Léonard Dubois and Harry Sokol"
+date: "2025-04-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(maaslin3)
+library(ComplexHeatmap)
+library(circlize)
+library(vegan)
+library(viridis)
+
+rm(list = ls())
+gc()
+
+
+md <- read_tsv(file = "metadata_clean.csv", col_names = T, show_col_types = F)
+
+sample_keep_corr <- md %>% filter(group_FMT != "before_FMT", data == "shotgun_metagenomics") %>% 
+    pull(sample_ID) %>% str_extract(., pattern = "(HD|Cosmic)_[0-9]+")
+```
+
+# Load data
+
+```{r}
+
+humann3_clean <- lapply(list.files(path = "humann3_path_coverage/", full.names = T), 
+       function(f){
+           
+           id <- str_remove(basename(f), pattern = "_path.*")
+           tmp <- read_tsv(f, col_names = T, show_col_types = F)
+           colnames(tmp) <- c("pathway", id)
+           tmp <- tmp[!grepl(x = tmp$pathway, "^UN"), ] 
+           tmp <- tmp[!grepl(x = tmp$pathway, "\\|"), ] 
+       })
+
+humann3_pathway_table <- reduce(humann3_clean, .f = full_join) 
+humann3_pathway_table[is.na(humann3_pathway_table)] <- 0
+ 
+colnames(humann3_pathway_table) <- colnames(humann3_pathway_table) %>% 
+    str_remove_all(pattern = "CRSAFR-001-") %>%
+    str_replace(pattern = "^([0-9])", replacement = "HD_\\1")
+
+write_tsv(x = humann3_pathway_table, file = "HUMAnN3_pathabundance.tsv", col_names = T)
+
+```
+
+# PCoA
+
+```{r}
+humann3_pathway_table <- read_tsv(file = "HUMAnN3_pathabundance.tsv", col_names = T, show_col_types = F)
+humann3_pathway_table <- data.frame(humann3_pathway_table %>% select(-pathway), row.names = humann3_pathway_table %>% pull(pathway))
+colnames(humann3_pathway_table) <- str_extract(colnames(humann3_pathway_table) , pattern = "(HD|Cosmic)_[0-9]+")
+pathways_relab <- apply(humann3_pathway_table, 2, function(x) 100*x/sum(x))
+
+
+dt <- pathways_relab[ , apply(pathways_relab, 2, function(x) max(x) < 95) ]
+dt <- dt[rowSums(dt) != 0, ]
+
+# or better  use direct asv relab
+dist_beta <- vegdist(t(dt), method = "aitchison", pseudocount = 1e-10)
+
+md_pcoa <- md %>% mutate(sample = str_extract(sample_ID, pattern = "(HD|Cosmic)_[0-9]+")) %>%
+    filter(sample %in% colnames(humann3_pathway_table)) %>% select(sample, group_FMT) %>% distinct() 
+pco_dt <- ecodist::pco(dist_beta)
+plot_dt <- as.data.frame(pco_dt$vectors[, 1:2])
+plot_dt$sample <- rownames(as.matrix(dist_beta))
+plot_dt <- plot_dt %>%  left_join(md_pcoa)
+
+set.seed(12345)
+adonis_res <- adonis2(dist_beta ~ group_FMT, data = md_pcoa, permutations = 1e3)
+res_permutest <- permutest(betadisper(d = dist_beta, group = md_pcoa$group_FMT), permutations = 1e3)
+
+
+p <- plot_dt %>%
+    ggplot(data=., aes(x=X1, y=X2) ) + 
+    geom_point(size = 2, alpha = 0.9, pch = 21,
+               aes(fill = group_FMT)) +
+    stat_ellipse(aes(color = group_FMT)) +
+    theme_minimal() + 
+    scale_fill_viridis(discrete = T) + 
+    scale_color_viridis(discrete = T) +
+    xlab(paste("PC1", round(100*(pco_dt$values[1] / sum(pco_dt$values)), digits = 2), "%")) + 
+    ylab(paste("PC2", round(100*(pco_dt$values[2] / sum(pco_dt$values)), digits = 2), "%")) + 
+    coord_equal() +
+    theme(legend.position = "right", 
+          legend.direction = "vertical") +
+    labs(fill = "", color = "") + 
+    # adjust title
+    ggtitle("Beta diversity - HUMAnN 3 functional profile", 
+            subtitle = paste0("adonis2 R2 = ", as.character(round(adonis_res$R2[1] * 100, 2)),
+                              "%;P=", as.character(round(adonis_res$`Pr(>F)`[1], 4)), 
+                              "\npermutest P=", as.character(round(res_permutest$tab["Groups", "Pr(>F)"], 4)) ))
+
+```
+
+
+
+# Maaslin 3
+
+```{r}
+humann3_pathway_table <- read_tsv(file = "HUMAnN3_pathabundance.tsv", col_names = T, show_col_types = F)
+humann3_pathway_table <- data.frame(humann3_pathway_table %>% select(-pathway), row.names = humann3_pathway_table %>% pull(pathway))
+pathways_relab <- apply(humann3_pathway_table, 2, function(x) 100*x/sum(x))
+
+metadata <- read_tsv("metadata_clean.csv", col_names = T, show_col_types = F) %>%
+    mutate(sample_ID = str_replace(sample_ID, pattern = "-", replacement = "\\.")) %>% 
+    select(sample_ID, group_FMT) %>% distinct()
+metadata <- data.frame(metadata %>% select(-sample_ID), row.names = metadata %>% pull(sample_ID))
+
+
+res_maaslin3 <- maaslin3(input_data = pathways_relab, 
+         input_metadata = metadata,
+         fixed_effects = "group_FMT",
+         reference = "group_FMT,donor",
+         output = "maaslin3_analysis" )
+
+
+
+res_maaslin3$fit_data_abundance$results
+maaslin_abund_res <- res_maaslin3$fit_data_abundance$results %>% select(-error) %>% na.omit() %>% group_by(feature) %>% filter(n() == 2) 
+maaslin_prev_res <- res_maaslin3$fit_data_prevalence$results %>% select(-error) %>% na.omit() %>% group_by(feature) %>% filter(n() == 2) 
+
+
+
+qval <- maaslin_abund_res %>% select(feature, value, qval_individual) %>% pivot_wider(names_from = value, values_from = qval_individual) 
+coef <- maaslin_abund_res %>% select(feature, value, coef) %>% pivot_wider(names_from = value, values_from = coef)
+
+ggplot(data = coef, 
+       aes(x = before_FMT, y = after_FMT)) + 
+    geom_point() + 
+    geom_vline(xintercept = 0, linetype = "dotted") + 
+    geom_hline(yintercept = 0, linetype = "dotted") + 
+    theme_bw()
+
+ggplot(data = qval, 
+       aes(x = before_FMT, y = after_FMT)) + 
+    geom_point() + 
+    theme_bw() + 
+    scale_x_log10() + 
+    scale_y_log10()
+
+
+
+signif_pathways <- maaslin_abund_res %>% filter(feature %in% c(maaslin_abund_res %>% filter(qval_individual < 0.01) %>% pull(feature) %>% unique()))
+#signif_pathways <- maaslin_prev_res %>% filter(feature %in% c(maaslin_prev_res %>% filter(qval_individual < 0.05) %>% pull(feature) %>% unique()))
+
+
+TOP_N = 20
+
+top_before <- signif_pathways %>% ungroup() %>% filter(value == "before_FMT") %>% 
+    arrange(qval_individual) %>% slice_head(n = TOP_N) %>% pull(feature)
+top_after <- signif_pathways %>% ungroup() %>% filter(value == "after_FMT") %>% 
+    arrange(qval_individual) %>% slice_head(n = TOP_N) %>% pull(feature)
+
+signif_pathways %>% filter(feature %in% c(top_before, top_after) ) %>%
+    ggplot(data = ., 
+           aes(x = coef, y = reorder(feature, coef), fill = -log10(qval_individual))) + 
+    geom_bar(stat = "identity") + 
+    geom_vline(xintercept = 0, linetype = "dotted") + 
+    facet_grid(cols = vars(value)) +
+    theme_bw()
+
+
+```
+
+
+# correlations
+
+with scenith
+
+```{r}
+
+humann3_pathway_table <- read_tsv(file = "HUMAnN3_pathabundance.tsv", col_names = T, show_col_types = F)
+humann3_pathway_table <- data.frame(humann3_pathway_table %>% select(-pathway), row.names = humann3_pathway_table %>% pull(pathway))
+colnames(humann3_pathway_table) <- str_extract(colnames(humann3_pathway_table), pattern = "(HD|Cosmic)_[0-9]+")
+humann3_pathway_table <- humann3_pathway_table[ , sample_keep_corr ]
+humann3_pathway_table <- humann3_pathway_table[ apply(humann3_pathway_table, 1, var) != 0,  ]
+pathways_relab <- apply(humann3_pathway_table, 2, function(x) 100*x/sum(x))
+
+
+scenith_dt <- read_tsv(file = "scenith_data.tsv", col_names = T, show_col_types = F) %>% filter(sample %in% sample_keep_corr)
+
+
+scenith_pathway_corr <- lapply(unique(scenith_dt$type_measure), function(measure){
+    # measure = "Mitochondrial dependence"
+    tmp_scenith <- scenith_dt %>% 
+        filter(type_measure == measure, sample %in% colnames(pathways_relab)) %>%
+        select(-type_measure, -group)
+    tmp_scenith <- data.frame(tmp_scenith %>% select(-sample), row.names = tmp_scenith %>% pull(sample))
+
+    tmp_humann <- pathways_relab[, rownames(tmp_scenith)]
+    
+    res_corr <- lapply(rownames(pathways_relab), function(pathway){
+        lapply(colnames(tmp_scenith), function(cell){
+            
+            a <-t(pathways_relab)[rownames(tmp_scenith), pathway]
+            b <- tmp_scenith[, cell]
+            if(length(unique(b)) < 5){ return(NULL)}
+
+            res <- cor.test(a, b, method = "spearman" )
+            tibble(pathway = pathway, 
+                   cell_type = cell, 
+                   corr = res$estimate, pval = res$p.value, 
+                   type_measure = measure)
+            
+        }) %>% do.call(., what = rbind)
+    }) %>% do.call(., what = rbind)
+    
+    res_corr$padj <- p.adjust(res_corr$pval, method = "BH")
+    return(res_corr)
+}) %>% do.call(., what = rbind)
+
+
+scenith_pathway_corr_signif <- scenith_pathway_corr %>% filter(padj < 0.05) 
+
+```
+
+
+with metabo
+
+```{r}
+humann3_pathway_table <- read_tsv(file = "HUMAnN3_pathabundance.tsv", col_names = T, show_col_types = F)
+humann3_pathway_table <- data.frame(humann3_pathway_table %>% select(-pathway), row.names = humann3_pathway_table %>% pull(pathway))
+colnames(humann3_pathway_table) <- str_extract(colnames(humann3_pathway_table), pattern = "(HD|Cosmic)_[0-9]+")
+humann3_pathway_table <- humann3_pathway_table[ , sample_keep_corr ]
+pathways_relab <- apply(humann3_pathway_table, 2, function(x) 100*x/sum(x))
+
+
+metabo_dt <- read_tsv(file = "all_metabo_dt_limit_detection.tsv", col_names = T, show_col_types = F) %>% filter(sample %in% sample_keep_corr)
+
+
+
+metabo_pathway_corr <- lapply(unique(metabo_dt$bodysite), function(site){
+    # bodysite = "feces"
+    tmp_metabo <- metabo_dt %>% 
+        filter(bodysite == site, sample %in% colnames(pathways_relab)) %>%
+        select(-bodysite)
+    tmp_metabo <- data.frame(tmp_metabo %>% select(-sample), row.names = tmp_metabo %>% pull(sample))
+
+    tmp_humann <- pathways_relab[, rownames(tmp_metabo)]
+    
+    res_corr <- lapply(rownames(pathways_relab), function(pathway){
+        #print(pathway)
+        lapply(colnames(tmp_metabo), function(metabo){
+            #print(metabo)
+            a <- t(pathways_relab)[rownames(tmp_metabo), pathway]
+            b <- tmp_metabo[, metabo]
+            if(length(na.omit(b)) == 0){ return(NULL)}
+            if(length(unique(b)) < 5){ return(NULL)}
+            res <- cor.test(a, b, method = "spearman" )
+            tibble(pathway = pathway, 
+                   metabolite = metabo, 
+                   corr = res$estimate, pval = res$p.value, 
+                   bodysite = site)
+            
+        }) %>% do.call(., what = rbind)
+    }) %>% do.call(., what = rbind)
+    
+    res_corr$padj <- p.adjust(res_corr$pval, method = "BH")
+    return(res_corr)
+}) %>% do.call(., what = rbind)
+
+
+
+```
+
+
+Visualize Correlation as heatmaps
+
+```{r}
+SITE = "feces"
+
+# metabo_pathway_corr_signif <- metabo_pathway_corr %>% filter(padj < 0.05) %>% filter(bodysite == SITE)
+
+
+res <- metabo_pathway_corr %>% filter(bodysite == SITE, 
+                                      metabolite %in% metabo_pathway_corr_signif$metabolite, 
+                                      pathway %in% metabo_pathway_corr_signif$pathway) %>%
+    select(-bodysite) %>% na.omit() 
+
+
+corr_dt <- res %>% 
+    select(pathway, metabolite, corr) %>% 
+    pivot_wider(names_from = pathway, values_from = corr) %>%
+    as.data.frame()
+rownames(corr_dt) <- corr_dt$metabolite
+corr_dt <- corr_dt %>% select(-metabolite)
+
+
+pval_dt <- res %>% 
+    select(pathway, metabolite, padj) %>% 
+    pivot_wider(names_from = pathway, values_from = padj) %>%
+    as.data.frame()
+rownames(pval_dt) <- pval_dt$metabolite
+pval_dt <- pval_dt %>% select(-metabolite)
+
+col_fun_HM <- colorRamp2(c("blue", "white", "red"),
+                             breaks = c(1, 0, -1))
+h <- Heatmap(matrix = corr_dt, 
+            col = col_fun_HM,
+            na_col = "white",
+                 
+            width = unit(0.30, "cm") * ncol(corr_dt), 
+            height = unit(0.30, "cm") * nrow(corr_dt),
+            
+            column_title = SITE,
+            column_title_gp = gpar(fontsize = 12),
+            column_title_side = "top", 
+            cluster_rows = T, 
+            show_row_dend = F,
+            cluster_columns = T, 
+            show_column_names = T,
+            show_row_names = T, row_title = NULL,
+            
+            border = T,                
+            column_gap = unit(1, "mm"), 
+            row_names_gp = gpar(fontsize = 9, fontface= "italic"),     
+            column_names_gp = gpar(fontsize = 9),
+            
+            rect_gp = gpar(col = "white", lwd = 0.5),
+            show_heatmap_legend =T,
+            row_names_side = "left", 
+            
+            cell_fun = function(j, i, x, y, width, height, fill) {
+                if(!is.na(pval_dt[i, j] )){
+                    if(pval_dt[i, j] < 0.05){
+                        color_star <- ifelse(abs(corr_dt[i, j]) > 0.5, "white", "black")
+                        grid.text("*", x, y -height/3, gp = gpar(fontsize = 12, col = color_star))
+                    }
+                }
+            })
+
+draw(h, heatmap_legend_side = "right", )
+
+```
+
+

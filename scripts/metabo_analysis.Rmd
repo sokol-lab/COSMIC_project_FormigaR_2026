@@ -1,0 +1,513 @@
+---
+title: "Analysis scenith data"
+author: "Léonard Dubois, Rodrigo Formiga and Harry Sokol"
+date: "2025"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(phyloseq)
+library(microViz)
+library(viridis)
+library(vegan)
+library(ggsignif)
+library(rstatix)
+library(ComplexHeatmap)
+library(RColorBrewer)
+library(circlize)
+
+library(ggpubr)
+
+rm(list = ls())
+gc()
+
+colormap_group <- c("#b2df8a", "#a6cee3", "#1f78b4") 
+names(colormap_group) <- c("donor", "before_FMT", "after_FMT") 
+
+```
+
+
+# Import data
+
+```{r}
+
+scenith_dt <- read_tsv(file = "scenith_data.tsv", col_names = T, show_col_types = F)
+
+pairwise_FMT_dt <- read_tsv(file = "FMT_pairing.tsv", col_names = T, show_col_types = F)
+pairwise_FMT_dt <- pairwise_FMT_dt %>%
+    mutate(FMT_group = paste0("FMT_grp_", row_number())) %>% 
+    pivot_longer(cols = c("donor", "before_FMT", "after_FMT"), values_to = "sample", names_to = "group") %>%
+    mutate(bodysite = ifelse(data == "shotgun_metagenomics", "feces", "plasma"))
+
+metabolomic_dt <- read_tsv(file = "all_metabo_dt.tsv", col_names = T, show_col_types = F) %>% 
+    left_join(pairwise_FMT_dt %>% distinct(group, sample)) %>% as.data.frame()
+
+metabolomic_dt_limits <- read_tsv(file = "all_metabo_dt_limit_detection.tsv", col_names = T, show_col_types = F) %>% 
+    left_join(pairwise_FMT_dt %>% distinct(group, sample)) %>% as.data.frame()
+
+metabo_type <- read_tsv(file = "metabolites_types.tsv", col_names = T, show_col_types = F)
+
+```
+
+
+# Compare all 3 groups (HD, before and after FMT) overall
+
+```{r}
+
+plot_dt <- cbind(metabolomic_dt %>% select(sample, bodysite, group), 
+      metabolomic_dt %>% select(-sample, -bodysite, -group) %>% mutate_if(is.character, as.numeric) ) %>%
+    pivot_longer(-c(sample, bodysite, group), names_to = "metabolite", values_to = "concentration") %>%
+    mutate(group = factor(group, levels = c("donor", "before_FMT", "after_FMT")))
+
+# with limits of detection replaced
+plot_dt <- metabolomic_dt_limits %>%
+    pivot_longer(-c(sample, bodysite, group), names_to = "metabolite", values_to = "concentration") %>%
+    mutate(group = factor(group, levels = c("donor", "before_FMT", "after_FMT")))
+plot_dt <- plot_dt %>% group_by(metabolite, bodysite) %>% mutate(var = var(concentration)) %>% filter(var != 0)
+
+BODYSITE = "plasma"
+TYPE = "TRP_derivatives"
+# unique(metabo_type$type)
+
+pdf(file = "metabo_comparisons.pdf", width = 12, height = 10)
+for(BODYSITE in c("plasma", "feces")){
+    for(TYPE in unique(metabo_type$type) ){
+        tmp <-  plot_dt %>% filter(bodysite == BODYSITE, 
+                                   metabolite %in% c(metabo_type %>% filter(type == TYPE) %>% pull(metabolite)) ) %>%
+            na.omit() %>% group_by(metabolite) %>% filter(n_distinct(group) == 3)
+        if (nrow(tmp) == 0){next}
+        p <- ggplot(data = tmp, 
+                   aes(x = group, y = concentration, color = group)) +
+            geom_boxplot(outlier.shape = NA) +
+            geom_jitter(height = 0) +
+            facet_wrap(~metabolite, scale = "free", ncol = 7) + 
+            geom_pwc(method = "wilcox.test", p.adjust.method = "BH",
+                     p.adjust.by = "panel",  hide.ns = "p.adj", tip.length = 0) + 
+            scale_color_manual(values = colormap_group) +
+            theme_minimal() + xlab("") + 
+            theme(panel.grid.major.x = element_blank(), 
+                  axis.text.x = element_blank()) + ggtitle(paste0(BODYSITE, " metabolites"), subtitle = TYPE) +
+            stat_kruskal_test(p.adjust.method = "BH", label.y.npc = "bottom", label = "KW Padj={p.format}")
+        print(p)
+    }
+} 
+dev.off()
+
+```
+
+
+# Compare before and after FMT - paired test
+
+
+```{r}
+
+plot_dt2 <- cbind(metabolomic_dt %>% select(sample, bodysite, group), 
+      metabolomic_dt %>% select(-sample, -bodysite, -group) %>% mutate_if(is.character, as.numeric) ) %>%
+    pivot_longer(-c(sample, bodysite, group), names_to = "metabolite", values_to = "concentration") %>%
+    filter(group != "donor") %>%
+    mutate(group = factor(group, levels = c("before_FMT", "after_FMT"))) %>%
+    na.omit() %>% left_join(pairwise_FMT_dt %>% select(sample, FMT_group, bodysite), relationship = "many-to-many") %>%
+    group_by(FMT_group, metabolite, bodysite) %>% filter(n() == 2)
+
+
+plot_dt2 <- metabolomic_dt_limits %>%
+    pivot_longer(-c(sample, bodysite, group), names_to = "metabolite", values_to = "concentration") %>%
+    filter(group != "donor") %>%
+    mutate(group = factor(group, levels = c("before_FMT", "after_FMT"))) %>%
+    na.omit() %>% left_join(pairwise_FMT_dt %>% select(sample, FMT_group, bodysite), relationship = "many-to-many") %>%
+    group_by(FMT_group, metabolite, bodysite) %>% filter(n() == 2)
+plot_dt2 <- plot_dt2 %>% group_by(metabolite, bodysite) %>% mutate(var = var(concentration)) %>% filter(var != 0)
+
+pdf(file = "metabo_comparisons_paired.pdf", width = 12, height = 10)
+for(BODYSITE in c("plasma", "feces")){
+    for(TYPE in unique(metabo_type$type) ){
+        tmp <-  plot_dt2 %>% filter(bodysite == BODYSITE, 
+                                   metabolite %in% c(metabo_type %>% filter(type == TYPE) %>% pull(metabolite)) )
+        if (nrow(tmp) == 0){next}
+        p <- ggplot(data = tmp , 
+                    aes(x = group, y = concentration)) +
+            geom_boxplot(aes(color = group), outlier.shape = NA) +
+            geom_point(aes(color = group), alpha= 0.7 ) + 
+            geom_line(aes(group = FMT_group), alpha = 0.2) +
+            facet_wrap(~metabolite, scale = "free", ) + 
+            scale_color_manual(values = colormap_group) +
+            theme_minimal() + xlab("") + 
+            theme(panel.grid.major.x = element_blank(), 
+                  axis.text.x = element_blank()) + 
+            ggtitle(paste0(BODYSITE, " metabolites - paired before and after FMT"), subtitle = TYPE) + 
+            geom_pwc(method = "wilcox.test", method.args = list(paired = TRUE),
+                     p.adjust.method = "BH", hide.ns = "p.adj", tip.length = 0, y.position = 0 )
+        print(p)
+    }
+}
+dev.off()
+
+```
+
+# Sum up primary and secondary bile acids
+
+
+```{r}
+bile_acid_dt <- metabolomic_dt_limits %>%
+    pivot_longer(-c(sample, bodysite, group), names_to = "metabolite", values_to = "concentration") %>%
+    mutate(group = factor(group, levels = c("donor", "before_FMT", "after_FMT"))) %>% 
+    left_join(metabo_type %>% select(-TRP_pathways)) %>% filter(type == "biliary_acids") %>% na.omit()
+
+bile_acid_dt %>% group_by(sample, group, bile_acid_group) %>% summarize(total = sum(concentration)) %>%
+    ggplot(., aes(x = group, y = total, color = group)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(height = 0) +
+    facet_grid(~bile_acid_group, scale = "free") + 
+    geom_pwc(method = "wilcox.test", p.adjust.method = "BH",
+             p.adjust.by = "panel",  hide.ns = "p.adj", tip.length = 0) + 
+    scale_color_manual(values = colormap_group) +
+    theme_minimal() + xlab("") +
+    theme(panel.grid.major.x = element_blank())
+
+bile_acid_dt %>% group_by(sample, group, bile_acid_conjugated, bile_acid_group) %>% summarize(total = sum(concentration)) %>%
+    ggplot(., aes(x = group, y = total, color = group)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(height = 0) +
+    facet_grid(bile_acid_group~bile_acid_conjugated, scale = "free") + 
+    geom_pwc(method = "wilcox.test", p.adjust.method = "BH",
+             p.adjust.by = "panel",  hide.ns = "p.adj", tip.length = 0) + 
+    scale_color_manual(values = colormap_group) +
+    theme_minimal() + xlab("") +
+    theme(panel.grid.major.x = element_blank())
+
+```
+
+# Trp metabolism pathways
+
+same try to sum (if that makes sense)
+
+```{r}
+
+trp_dt <- metabolomic_dt_limits %>%
+    pivot_longer(-c(sample, bodysite, group), names_to = "metabolite", values_to = "concentration") %>%
+    mutate(group = factor(group, levels = c("donor", "before_FMT", "after_FMT"))) %>% 
+    left_join(metabo_type %>% select(-bile_acid_group, -bile_acid_conjugated)) %>% filter(type == "TRP_derivatives") %>% na.omit()
+
+trp_dt %>% group_by(sample, group, TRP_pathways) %>% summarize(total = sum(concentration)) %>%
+    ggplot(., aes(x = group, y = total, color = group)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(height = 0) +
+    facet_wrap(~TRP_pathways, scale = "free") + 
+    geom_pwc(method = "wilcox.test", p.adjust.method = "BH",
+             p.adjust.by = "panel",  hide.ns = "p.adj", tip.length = 0) + 
+    scale_color_manual(values = colormap_group) +
+    theme_minimal() + xlab("") +
+    theme(panel.grid.major.x = element_blank())
+
+
+```
+
+
+
+# [OLD] Correlation plasma and feces values - comparing before and after FMT for each metabolite
+
+No interesting results, lack of power in the correlation
+
+```{r}
+
+plot_dt3 <- cbind(metabolomic_dt_limits %>% select(sample, bodysite, group), 
+      metabolomic_dt_limits %>% select(-sample, -bodysite, -group) %>% mutate_if(is.character, as.numeric) ) %>%
+    pivot_longer(-c(sample, bodysite, group), names_to = "metabolite", values_to = "concentration") %>%
+    filter(group != "donor") %>%
+    na.omit() %>% left_join(pairwise_FMT_dt %>% select(sample, FMT_group, bodysite), relationship = "many-to-many") %>%
+    group_by(FMT_group, metabolite, bodysite) %>% filter(n() == 2) %>% ungroup()
+
+
+# remove sample ID as they convey the before/after information: use FMT group + bodysite as a "subjectID"
+plot_dt4 <- full_join(plot_dt3 %>% filter(bodysite == "feces") %>% select(metabolite, group, sample, concentration_feces = concentration),
+                      plot_dt3 %>% filter(bodysite == "plasma") %>% select(metabolite, group, sample, concentration_plasma = concentration))
+
+
+
+ggplot(data = plot_dt4 %>% group_by(group, metabolite) %>% filter(n() >=2) %>% na.omit(),
+       aes(x = concentration_plasma, y = concentration_feces, group = group, color = group)) + 
+    geom_point() +
+    geom_smooth(method = glm, se = T) + 
+    stat_cor(method = "spearman", label.x.npc = "left", label.y.npc = "top",) +
+    facet_wrap(~metabolite, scale = "free") +
+    theme_minimal() +
+    theme()
+
+ggplot(data = plot_dt4 %>% na.omit(),
+       aes(x = concentration_plasma, y = concentration_feces)) + 
+    geom_point() +
+    geom_smooth(method = glm, se = T) + 
+    stat_cor(method = "spearman", label.x.npc = "left", label.y.npc = "top",) +
+    facet_wrap(~metabolite, scale = "free") +
+    theme_minimal() +
+    theme()
+
+
+```
+
+
+# Correlation with metagenomics data
+
+Big questio is whether to remove of not the before FMT sample as their alpha diversity is rather low.
+On the other hand I put a filtering on the prevalence regarding the species tested 
+On top of that low species/0 abundnce and low/high metabolite has a lot of biological sense...
+
+```{r}
+# generate tidy data for metabo
+metabo_dt_corr <- cbind(metabolomic_dt %>% select(sample, bodysite, group), 
+      metabolomic_dt %>% select(-sample, -bodysite, -group) %>% mutate_if(is.character, as.numeric) ) %>%
+    pivot_longer(-c(sample, bodysite, group), names_to = "metabolite", values_to = "concentration") 
+    # filter(group != "before_FMT") # low alpha div, remove group from contamination
+
+metabo_dt_corr <-  metabolomic_dt_limits %>% pivot_longer(-c(sample, bodysite, group), names_to = "metabolite", values_to = "concentration") 
+
+
+# mpa4 data
+mpa4_table <- read_tsv(file = "profile_mpa4_vJun23_FMT_Cdiff.tsv", col_names = T, show_col_types = F)
+rname <- mpa4_table$clade
+mpa4_table <- as.matrix(mpa4_table %>% select(-clade))
+rownames(mpa4_table) <- rname
+mpa4_table_spc <- mpa4_table[ grepl("s__[A-Za-z_]+$", rownames(mpa4_table) ), ]
+mpa4_table_sgb <- mpa4_table[ grepl("t__SGB", rownames(mpa4_table) ), ]
+
+metabo_dt_corr <- metabo_dt_corr[metabo_dt_corr$sample %in% colnames(mpa4_table_spc), ]
+
+```
+
+
+
+```{r}
+
+mpa4_table_sgb_topprev <- mpa4_table_spc[apply(mpa4_table_spc, 1, function(x) sum(x > 0.05) / ncol(mpa4_table_spc) ) > 0.4, ]
+
+res_corr_metabo_metag <- lapply(c("feces", "plasma"), function(BODYSITE){
+    metabo_dt_corr_bodysite <- metabo_dt_corr %>% filter(bodysite == BODYSITE) %>% select(-bodysite) %>% na.omit()
+    res_corr_body <- lapply(unique(metabo_dt_corr_bodysite$metabolite), function(metab){
+        # loop on metabolite
+        # metab = "Malic Acid"
+        print(metab)
+        tmp_metab_dt <- metabo_dt_corr_bodysite %>% filter(metabolite == metab)
+        if(nrow(tmp_metab_dt) < 2){
+            return(NULL)
+        }
+        tmp_mpa <- mpa4_table_sgb_topprev[, tmp_metab_dt$sample]
+        #tmp_mpa <- tmp_mpa[apply(tmp_mpa, 1, function(x) sum(x > 0.05) / ncol(tmp_mpa)) > 0.5, ]
+        # loop on SGB
+        lapply(rownames(tmp_mpa), function(sgb){
+            print(sgb)
+            res <- cor.test(tmp_mpa[sgb, ], tmp_metab_dt$concentration, method = "spearman" )
+            return(tibble(sgb = sgb, 
+                          metabolite = paste0(metab, " n=", ncol(tmp_mpa)), 
+                          corr = res$estimate, 
+                          p = res$p.value, 
+                          bodysite = BODYSITE, n = ncol(tmp_mpa)))
+        }) %>% do.call(., what = rbind)
+    }) %>% do.call(., what = rbind)
+    res_corr_body$padj <- p.adjust(res_corr_body$p, method = "BH")
+    return(res_corr_body)
+    
+}) %>% do.call(., what = rbind)
+
+
+a = res_corr_metabo_metag %>% filter(padj < 0.2)
+
+res_corr_metabo_metag$sgb <- res_corr_metabo_metag$sgb %>%
+    str_remove_all(pattern = ".*s__") %>%
+    str_replace_all(pattern = "\\|t__", replacement = " ")
+res_corr_metabo_metag$metabolite  <- res_corr_metabo_metag$metabolite %>%
+    str_replace_all(pattern = "\n", replacement = " ")
+```
+
+
+Visualize as 2 heatmaps 
+
+```{r}
+
+BODYSITE = "feces"
+
+corr_dt <- res_corr_metabo_metag %>% filter(bodysite == BODYSITE, n > 6) %>% na.omit() %>% 
+    select(sgb, metabolite, corr) %>% 
+    pivot_wider(names_from = metabolite, values_from = corr) %>%
+    as.data.frame()
+rownames(corr_dt) <- corr_dt$sgb
+corr_dt <- corr_dt %>% select(-sgb)
+
+
+pval_dt <- res_corr_metabo_metag %>% filter(bodysite == BODYSITE, n > 6) %>% na.omit() %>% 
+    select(sgb, metabolite, padj) %>% 
+    pivot_wider(names_from = metabolite, values_from = padj) %>%
+    as.data.frame()
+rownames(pval_dt) <- pval_dt$sgb
+pval_dt <- pval_dt %>% select(-sgb)
+
+
+col_fun_HM <- colorRamp2(c("blue", "white", "red"),
+                             breaks = c(1, 0, -1))
+h <- Heatmap(matrix = corr_dt, 
+            col = col_fun_HM,
+            na_col = "white",
+                 
+            width = unit(0.25, "cm") * ncol(corr_dt), 
+            height = unit(0.25, "cm") * nrow(corr_dt),
+            
+            column_title = BODYSITE,
+            column_title_gp = gpar(fontsize = 12),
+            column_title_side = "top", 
+            cluster_rows = T, 
+            show_row_dend = F,
+            cluster_columns = T, 
+            show_column_names = T,
+            show_row_names = T, row_title = NULL,
+            
+            border = T,                
+            column_gap = unit(1, "mm"), 
+            row_names_gp = gpar(fontsize = 8, fontface= "italic"),     
+            column_names_gp = gpar(fontsize = 8),
+            
+            rect_gp = gpar(col = "white", lwd = 0.5),
+            show_heatmap_legend =T,
+            row_names_side = "left", 
+            
+            cell_fun = function(j, i, x, y, width, height, fill) {
+                if(!is.na(pval_dt[i, j] )){
+                    if(pval_dt[i, j] < 0.1){
+                        color_star <- ifelse(abs(corr_dt[i, j]) > 0.5, "white", "black")
+                        grid.text("*", x, y -height/3, gp = gpar(fontsize = 12, col = color_star))
+                    }
+                }
+            })
+
+draw(h, heatmap_legend_side = "right", )
+```
+
+
+
+# Correlation with SCENITH data
+
+TODO 
+plasma : all 3 groups
+Stool : only before after FMT as HD scenith != HD metabo feces
+
+```{r}
+scenith_dt <- read_tsv(file = "scenith_data.tsv", col_names = T, show_col_types = F)
+
+metabo_dt_corr <- cbind(metabolomic_dt %>% select(sample, bodysite, group), 
+      metabolomic_dt %>% select(-sample, -bodysite, -group) %>% mutate_if(is.character, as.numeric) ) %>%
+    pivot_longer(-c(sample, bodysite, group), names_to = "metabolite", values_to = "concentration") 
+
+
+metabo_dt_corr <-  metabolomic_dt_limits %>% pivot_longer(-c(sample, bodysite, group), names_to = "metabolite", values_to = "concentration") 
+
+# loop over bodysite, and measure type
+
+res_corr_metabo_SCENITH <- lapply(c("feces", "plasma"), function(BODYSITE){
+    metabo_dt_corr_bodysite <- metabo_dt_corr %>% filter(bodysite == BODYSITE) %>% select(-bodysite) %>% na.omit()
+    res_corr_measure <- lapply(unique(scenith_dt$type_measure), function(measure){
+        # loop on measure type
+        # measure = "Mitochondrial dependence"
+        tmp_scenith <- scenith_dt %>% filter(type_measure == measure, sample %in% metabo_dt_corr_bodysite$sample)
+        res_corr <- lapply(colnames(tmp_scenith)[2:13], function(cell_type){
+            #cell_type = "B cells" 
+            # loop on SGB
+            lapply(unique(metabo_dt_corr_bodysite$metabolite), function(metabo){
+                corr_dt <- merge(metabo_dt_corr_bodysite %>% filter(metabolite == metabo) %>% select(sample, concentration),
+                                 tmp_scenith %>% filter(sample %in% metabo_dt_corr_bodysite$sample) %>% select(sample, cell_type))
+                if(BODYSITE == "feces"){
+                    corr_dt <- corr_dt[!grepl(pattern = "HD", corr_dt$sample), ]
+                }
+                if(nrow(corr_dt) < 2) { return(NULL)}
+                res <- cor.test(corr_dt[, 2], corr_dt[, 3], method = "spearman") 
+                
+                return(tibble(metabolite = metabo, 
+                              cell_type = cell_type, 
+                              corr = res$estimate, 
+                              p = res$p.value, 
+                              measure = measure, 
+                              bodysite = BODYSITE))
+            }) %>% do.call(., what = rbind)
+        }) %>% do.call(., what = rbind) %>%
+            mutate(padj = p.adjust(p, method = "BH"))
+        
+    }) %>% do.call(., what = rbind)
+    
+}) %>% do.call(., what = rbind)
+
+
+res_corr_metabo_SCENITH$metabolite <- str_replace_all(res_corr_metabo_SCENITH$metabolite, pattern = "\n", replacement = " ")
+
+a = res_corr_metabo_SCENITH %>% filter(padj < 0.2)
+
+```
+
+
+
+```{r}
+
+
+BODYSITE = "feces"
+MEASURE = "Mitochondrial dependence"
+MEASURE = "Glucose dependence"
+
+corr_dt <- res_corr_metabo_SCENITH %>% filter(bodysite == BODYSITE, measure == MEASURE) %>% na.omit() %>% 
+    select(cell_type, metabolite, corr) %>% 
+    pivot_wider(names_from = metabolite, values_from = corr) %>%
+    as.data.frame()
+rownames(corr_dt) <- corr_dt$cell_type
+corr_dt <- corr_dt %>% select(-cell_type)
+
+
+pval_dt <- res_corr_metabo_SCENITH %>% filter(bodysite == BODYSITE, measure == MEASURE)  %>% na.omit()%>% 
+    select(cell_type, metabolite, padj) %>% 
+    pivot_wider(names_from = metabolite, values_from = padj) %>%
+    as.data.frame()
+rownames(pval_dt) <- pval_dt$cell_type
+pval_dt <- pval_dt %>% select(-cell_type)
+
+
+col_fun_HM <- colorRamp2(c("blue", "white", "red"),
+                             breaks = c(1, 0, -1))
+h <- Heatmap(matrix = corr_dt, 
+            col = col_fun_HM,
+            na_col = "white",
+                 
+            width = unit(0.25, "cm") * ncol(corr_dt), 
+            height = unit(0.25, "cm") * nrow(corr_dt),
+            
+            column_title = paste(BODYSITE, MEASURE),
+            column_title_gp = gpar(fontsize = 12),
+            column_title_side = "top", 
+            cluster_rows = T, 
+            show_row_dend = F,
+            cluster_columns = T, 
+            show_column_names = T,
+            show_row_names = T, row_title = NULL,
+            
+            border = T,                
+            column_gap = unit(1, "mm"), 
+            row_names_gp = gpar(fontsize = 8, fontface= "italic"),     
+            column_names_gp = gpar(fontsize = 8),
+            
+            rect_gp = gpar(col = "white", lwd = 0.5),
+            show_heatmap_legend =T,
+            row_names_side = "left", 
+            
+            cell_fun = function(j, i, x, y, width, height, fill) {
+                if(!is.na(pval_dt[i, j] )){
+                    if(pval_dt[i, j] < 0.1){
+                        color_star <- ifelse(abs(corr_dt[i, j]) > 0.5, "white", "black")
+                        grid.text("*", x, y -height/3, gp = gpar(fontsize = 10, col = color_star))
+                    } 
+                }
+            })
+
+draw(h, heatmap_legend_side = "right", )
+
+
+
+
+```
+
+
