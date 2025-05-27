@@ -1,0 +1,219 @@
+measure	type
+Faecalibacterium_prausnitzii	species_relab
+Candidatus_Cibionibacter_quicibialis	species_relab
+Blautia_wexlerae	species_relab
+Fusicatenibacter_saccharivorans	species_relab
+Anaerostipes_hadrus	species_relab
+Agathobaculum_butyriciproducens	species_relab
+Alistipes_putredinis	species_relab
+Ruminococcus_bicirculans	species_relab
+Anaerobutyricum_hallii	species_relab
+Mediterraneibacter_faecis	species_relab
+Adlercreutzia_equolifaciens	species_relab
+Lawsonibacter_asaccharolyticus	species_relab
+Blautia_massiliensis	species_relab
+Romboutsia_timonensis	species_relab
+Bacteroides_caccae	species_relab
+Coprococcus_comes	species_relab
+Oscillibacter_valericigenes	species_relab
+Oliverpabstia_intestinalis	species_relab
+Dysosmobacter_welbionis	species_relab
+Dorea_longicatena	species_relab
+Alistipes_communis	species_relab
+Alistipes_onderdonkii	species_relab
+Bacteroides_cellulosilyticus	species_relab
+Roseburia_faecis	species_relab
+Dorea_formicigenerans	species_relab
+Coprococcus_catus	species_relab
+Blautia_glucerasea	species_relab
+Blautia_obeum	species_relab
+Lacrimispora_amygdalina	species_relab
+Escherichia_coli	species_relab
+Eubacterium_rectale	species_relab
+Odoribacter_splanchnicus	species_relab
+Eubacterium_ventriosum	species_relab
+Intestinibacter_bartlettii	species_relab
+Roseburia_inulinivorans	species_relab
+Lachnospira_eligens	species_relab
+Eubacteriaceae_bacterium	species_relab
+Ruminococcus_torques	species_relab
+Bacteroides_ovatus	species_relab
+Gemmiger_formicilis	species_relab
+Lachnospiraceae_bacterium	species_relab
+Eubacterium_ramulus	species_relab
+Phocaeicola_dorei	species_relab
+Barnesiella_intestinihominis	species_relab
+Alistipes_finegoldii	species_relab
+Veillonella_parvula	species_relab
+PWY-7238: sucrose biosynthesis II	pathway_relab
+VALSYN-PWY: L-valine biosynthesis	pathway_relab
+GLYCOGENSYNTH-PWY: glycogen biosynthesis I (from ADP-D-Glucose)	pathway_relab
+PWY-5941: glycogen degradation II	pathway_relab
+PWY-1042: glycolysis IV	pathway_relab
+ARGSYNBSUB-PWY: L-arginine biosynthesis II (acetyl cycle)	pathway_relab
+PWY-6163: chorismate biosynthesis from 3-dehydroquinate	pathway_relab
+PWY-5686: UMP biosynthesis I	pathway_relab
+PWY-7790: UMP biosynthesis II	pathway_relab
+PWY-7791: UMP biosynthesis III	pathway_relab
+ARGSYN-PWY: L-arginine biosynthesis I (via L-ornithine)	pathway_relab
+ARO-PWY: chorismate biosynthesis I	pathway_relab
+COMPLETE-ARO-PWY: superpathway of aromatic amino acid biosynthesis	pathway_relab
+DTDPRHAMSYN-PWY: dTDP-&beta;-L-rhamnose biosynthesis	pathway_relab
+PWY-6609: adenine and adenosine salvage III	pathway_relab
+PWY-6122: 5-aminoimidazole ribonucleotide biosynthesis II	pathway_relab
+PWY-6277: superpathway of 5-aminoimidazole ribonucleotide biosynthesis	pathway_relab
+PWY-6121: 5-aminoimidazole ribonucleotide biosynthesis I	pathway_relab
+GLUTORN-PWY: L-ornithine biosynthesis I	pathway_relab
+PWY-6386: UDP-N-acetylmuramoyl-pentapeptide biosynthesis II (lysine-containing)	pathway_relab
+PWY-6387: UDP-N-acetylmuramoyl-pentapeptide biosynthesis I (meso-diaminopimelate containing)	pathway_relab
+TRNA-CHARGING-PWY: tRNA charging	pathway_relab
+NONMEVIPP-PWY: methylerythritol phosphate pathway I	pathway_relab
+PWY-7221: guanosine ribonucleotides de novo biosynthesis	pathway_relab
+PWY0-1296: purine ribonucleosides degradation	pathway_relab
+PEPTIDOGLYCANSYN-PWY: peptidoglycan biosynthesis I (meso-diaminopimelate containing)	pathway_relab
+COA-PWY-1: superpathway of coenzyme A biosynthesis III (mammals)	pathway_relab
+PWY-6385: peptidoglycan biosynthesis III (mycobacteria)	pathway_relab
+ILEUSYN-PWY: L-isoleucine biosynthesis I (from threonine)	pathway_relab
+PWY-6700: queuosine biosynthesis I (de novo)	pathway_relab
+BRANCHED-CHAIN-AA-SYN-PWY: superpathway of branched chain amino acid biosynthesis	pathway_relab
+PWY-5667: CDP-diacylglycerol biosynthesis I	pathway_relab
+PWY0-1319: CDP-diacylglycerol biosynthesis II	pathway_relab
+PWY-5097: L-lysine biosynthesis VI	pathway_relab
+PWY-6151: S-adenosyl-L-methionine salvage I	pathway_relab
+ANAGLYCOLYSIS-PWY: glycolysis III (from glucose)	pathway_relab
+CALVIN-PWY: Calvin-Benson-Bassham cycle	pathway_relab
+COA-PWY: coenzyme A biosynthesis I (prokaryotic)	pathway_relab
+PWY-7953: UDP-N-acetylmuramoyl-pentapeptide biosynthesis III (meso-diaminopimelate containing)	pathway_relab
+PWY-3841: folate transformations II (plants)	pathway_relab
+PWY-7851: coenzyme A biosynthesis II (eukaryotic)	pathway_relab
+HISTSYN-PWY: L-histidine biosynthesis	pathway_relab
+PWY-6123: inosine-5'-phosphate biosynthesis I	pathway_relab
+PWY66-429: fatty acid biosynthesis initiation (mitochondria)	pathway_relab
+PWY-6317: D-galactose degradation I (Leloir pathway)	pathway_relab
+PWY-5695: inosine 5'-phosphate degradation	pathway_relab
+PWY-7977: L-methionine biosynthesis IV	pathway_relab
+PWY-6124: inosine-5'-phosphate biosynthesis II	pathway_relab
+PWY-7357: thiamine phosphate formation from pyrithiamine and oxythiamine (yeast)	pathway_relab
+PWY-6629: superpathway of L-tryptophan biosynthesis	pathway_relab
+PWY-5103: L-isoleucine biosynthesis III	pathway_relab
+PWY-724: superpathway of L-lysine, L-threonine and L-methionine biosynthesis II	pathway_relab
+PWY-6270: isoprene biosynthesis I	pathway_relab
+PWY-7560: methylerythritol phosphate pathway II	pathway_relab
+RIBOSYN2-PWY: flavin biosynthesis I (bacteria and plants)	pathway_relab
+PWY-2942: L-lysine biosynthesis III	pathway_relab
+PWY-6527: stachyose degradation	pathway_relab
+PWY-7199: pyrimidine deoxyribonucleosides salvage	pathway_relab
+1CMET2-PWY: folate transformations III (E. coli)	pathway_relab
+PANTOSYN-PWY: superpathway of coenzyme A biosynthesis I (bacteria)	pathway_relab
+HSERMETANA-PWY: L-methionine biosynthesis III	pathway_relab
+PWY-6823: molybdopterin biosynthesis	pathway_relab
+PWY-3001: superpathway of L-isoleucine biosynthesis I	pathway_relab
+COBALSYN-PWY: superpathway of adenosylcobalamin salvage from cobinamide I	pathway_relab
+PANTO-PWY: phosphopantothenate biosynthesis I	pathway_relab
+OANTIGEN-PWY: O-antigen building blocks biosynthesis (E. coli)	pathway_relab
+TRPSYN-PWY: L-tryptophan biosynthesis	pathway_relab
+SER-GLYSYN-PWY: superpathway of L-serine and glycine biosynthesis I	pathway_relab
+PWY-6897: thiamine diphosphate salvage II	pathway_relab
+THISYNARA-PWY: superpathway of thiamine diphosphate biosynthesis III (eukaryotes)	pathway_relab
+THISYN-PWY: superpathway of thiamine diphosphate biosynthesis I	pathway_relab
+PYRIDNUCSYN-PWY: NAD de novo biosynthesis I (from aspartate)	pathway_relab
+PWY-7400: L-arginine biosynthesis IV (archaebacteria)	pathway_relab
+PWY0-1586: peptidoglycan maturation (meso-diaminopimelate containing)	pathway_relab
+PWY-7456: &beta;-(1,4)-mannan degradation	pathway_relab
+PWY-6703: preQ0 biosynthesis	pathway_relab
+GLYCOLYSIS: glycolysis I (from glucose 6-phosphate)	pathway_relab
+PWY-6608: guanosine nucleotides degradation III	pathway_relab
+PWY-702: L-methionine biosynthesis II	pathway_relab
+METH-ACETATE-PWY: methanogenesis from acetate	pathway_relab
+PWY-5384: sucrose degradation IV (sucrose phosphorylase)	pathway_relab
+PWY-5484: glycolysis II (from fructose 6-phosphate)	pathway_relab
+PWY-621: sucrose degradation III (sucrose invertase)	pathway_relab
+DAPLYSINESYN-PWY: L-lysine biosynthesis I	pathway_relab
+PWY-6630: superpathway of L-tyrosine biosynthesis	pathway_relab
+PWY-7345: superpathway of anaerobic sucrose degradation	pathway_relab
+PENTOSE-P-PWY: pentose phosphate pathway	pathway_relab
+PWY-4041: &gamma;-glutamyl cycle	pathway_relab
+PWY-7761: NAD salvage pathway II (PNC IV cycle)	pathway_relab
+PWY-6470: peptidoglycan biosynthesis V (&beta;-lactam resistance)	pathway_relab
+P461-PWY: hexitol fermentation to lactate, formate, ethanol and acetate	pathway_relab
+GLYCOLYSIS-E-D: superpathway of glycolysis and the Entner-Doudoroff pathway	pathway_relab
+PWY66-399: gluconeogenesis III	pathway_relab
+PWY-7356: thiamine diphosphate salvage IV (yeast)	pathway_relab
+PWY-7117: C4 photosynthetic carbon assimilation cycle, PEPCK type	pathway_relab
+P441-PWY: superpathway of N-acetylneuraminate degradation	pathway_relab
+PWY-5505: L-glutamate and L-glutamine biosynthesis	pathway_relab
+PWY66-409: superpathway of purine nucleotide salvage	pathway_relab
+PWY-8004: Entner-Doudoroff pathway I	pathway_relab
+PWY-7383: anaerobic energy metabolism (invertebrates, cytosol)	pathway_relab
+PWY-7323: superpathway of GDP-mannose-derived O-antigen building blocks biosynthesis	pathway_relab
+PWY0-1479: tRNA processing	pathway_relab
+FASYN-ELONG-PWY: fatty acid elongation -- saturated	pathway_relab
+PWY-5913: partial TCA cycle (obligate autotrophs)	pathway_relab
+BIOTIN-BIOSYNTHESIS-PWY: biotin biosynthesis I	pathway_relab
+ARG+POLYAMINE-SYN: superpathway of arginine and polyamine biosynthesis	pathway_relab
+POLYISOPRENSYN-PWY: polyisoprenoid biosynthesis (E. coli)	pathway_relab
+PWY-7664: oleate biosynthesis IV (anaerobic)	pathway_relab
+PWY-6519: 8-amino-7-oxononanoate biosynthesis I	pathway_relab
+PWY0-862: (5Z)-dodecenoate biosynthesis I	pathway_relab
+FUCCAT-PWY: fucose degradation	pathway_relab
+PWY-6282: palmitoleate biosynthesis I (from (5Z)-dodec-5-enoate)	pathway_relab
+PWY-5989: stearate biosynthesis II (bacteria and plants)	pathway_relab
+PWY1ZNC-1: assimilatory sulfate reduction IV	pathway_relab
+PWY-7115: C4 photosynthetic carbon assimilation cycle, NAD-ME type	pathway_relab
+P185-PWY: formaldehyde assimilation III (dihydroxyacetone cycle)	pathway_relab
+PWY0-1261: anhydromuropeptides recycling I	pathway_relab
+PWY0-1297: superpathway of purine deoxyribonucleosides degradation	pathway_relab
+PWY-5345: superpathway of L-methionine biosynthesis (by sulfhydrylation)	pathway_relab
+GOLPDLCAT-PWY: superpathway of glycerol degradation to 1,3-propanediol	pathway_relab
+POLYAMSYN-PWY: superpathway of polyamine biosynthesis I	pathway_relab
+FUC-RHAMCAT-PWY: superpathway of fucose and rhamnose degradation	pathway_relab
+SULFATE-CYS-PWY: superpathway of sulfate assimilation and cysteine biosynthesis	pathway_relab
+NAGLIPASYN-PWY: lipid IVA biosynthesis (E. coli)	pathway_relab
+PWY-8073: lipid IVA biosynthesis (P. putida)	pathway_relab
+PWY0-781: aspartate superpathway	pathway_relab
+P4-PWY: superpathway of L-lysine, L-threonine and L-methionine biosynthesis I	pathway_relab
+PWY0-1477: ethanolamine utilization	pathway_relab
+PWY-6305: superpathway of putrescine biosynthesis	pathway_relab
+PWY-6590: superpathway of Clostridium acetobutylicum acidogenic fermentation	pathway_relab
+PWY-7013: (S)-propane-1,2-diol degradation	pathway_relab
+CENTFERM-PWY: pyruvate fermentation to butanoate	pathway_relab
+PWY-5897: superpathway of menaquinol-11 biosynthesis	pathway_relab
+PWY-5898: superpathway of menaquinol-12 biosynthesis	pathway_relab
+PWY-5899: superpathway of menaquinol-13 biosynthesis	pathway_relab
+PWY-5838: superpathway of menaquinol-8 biosynthesis I	pathway_relab
+feces__DCA	metabolite
+feces__GCA	metabolite
+feces__GCDCA	metabolite
+feces__Indole.3.Lactic.acid	metabolite
+feces__LCA	metabolite
+feces__Valeric.Acid	metabolite
+plasma__Butyric.Acid	metabolite
+plasma__CDCA	metabolite
+plasma__DCA	metabolite
+plasma__GCDCA	metabolite
+plasma__GDCA	metabolite
+plasma__GLCA	metabolite
+plasma__GUDCA	metabolite
+plasma__Indole.3.Acetic.acid	metabolite
+plasma__Indole.3.Lactic.acid	metabolite
+plasma__Indole.3.Sulfate	metabolite
+plasma__Indole.3.propionic.acid	metabolite
+plasma__Kynurenic.acid	metabolite
+plasma__Propionic.Acid	metabolite
+plasma__UDCA	metabolite
+plasma__Xanthurenic.acid	metabolite
+B cells__PS/ATP	SCENITH_measure
+Mono classical__PS/ATP	SCENITH_measure
+Mono intermediate__PS/ATP	SCENITH_measure
+CD4 Effector memory__PS/ATP	SCENITH_measure
+CD4 central memory__PS/ATP	SCENITH_measure
+CD4 naive__PS/ATP	SCENITH_measure
+CD8 central memory__PS/ATP	SCENITH_measure
+CD8 EMRA__PS/ATP	SCENITH_measure
+Mono classical__Mitochondrial dependence	SCENITH_measure
+Mono intermediate__Mitochondrial dependence	SCENITH_measure
+CD4 naive__Mitochondrial dependence	SCENITH_measure
+CD8 naive__Mitochondrial dependence	SCENITH_measure
+Mono classical__Glucose dependence	SCENITH_measure
+Mono intermediate__Glucose dependence	SCENITH_measure
+CD4 naive__Glucose dependence	SCENITH_measure

@@ -49,6 +49,18 @@ Measure the shift (pre post FMT) compared to the mean of Healthy donors
 Then look for engraftment of species (% of abundance of species coming from donor)
 
 
+Build matrix of significant measurements (bacteria, metabolites, SCENITH ) to look for correlation
+
+
+```{r}
+
+all_measure_mat <- NULL
+all_measure_type <- tibble()
+
+
+```
+
+
 
 # Microbiota data
 
@@ -63,6 +75,7 @@ mpa4_table <- as.matrix(mpa4_table %>% select(-clade))
 rownames(mpa4_table) <- rname
 
 mpa4_table_spc <- mpa4_table[ grepl("s__[A-Za-z_]+$", rownames(mpa4_table) ), ]
+rownames(mpa4_table_spc) <- str_remove(string = rownames(mpa4_table_spc), ".*s__")
 ```
 
 
@@ -70,7 +83,7 @@ mpa4_table_spc <- mpa4_table[ grepl("s__[A-Za-z_]+$", rownames(mpa4_table) ), ]
 
 ```{r}
 
-spc_keep <- apply(mpa4_table_spc, 1, function(x) sum(x > 0)/ncol(mpa4_table_spc) >= 0.3)
+spc_keep <- apply(mpa4_table_spc, 1, function(x) sum(x > 0.05)/ncol(mpa4_table_spc) >= 0.3)
 mpa_dt_light <- mpa4_table_spc[spc_keep , ]
 
 
@@ -79,7 +92,7 @@ median_relab <- lapply(rownames(mpa_dt_light), function(x){
     tmp$spc_abundance <- mpa_dt_light[x, tmp$sample]
     res <- tmp %>% group_by(name) %>% 
         summarise(med_relab = quantile(spc_abundance, 0.9)) %>%
-        mutate(spc = str_remove(string = x, ".*s__"))
+        mutate(spc = x)
     return(res)
 }) %>% do.call(., what= rbind)
 
@@ -130,8 +143,7 @@ tmp2 <- res_microbiota %>% filter(comparison == "post_donor") %>%
     select(spc, type_restoration)
 
     
-tmp <- full_join(tmp, tmp2) %>% mutate(spc = str_remove(string = spc, ".*s__")) %>% 
-    mutate(FMT_effect = paste(restored, type_restoration)) %>% filter(!grepl(FMT_effect, pattern = "NS"))
+tmp <- full_join(tmp, tmp2) %>% mutate(FMT_effect = paste(restored, type_restoration)) %>% filter(!grepl(FMT_effect, pattern = "NS"))
 
 plot_dt <- median_relab %>% left_join(tmp) %>% na.omit()
 
@@ -156,36 +168,20 @@ ggplot(data = plot_dt,
 ```
 
 
+```{r}
+all_measure_type <- all_measure_type %>% rbind(tibble(measure = unique(plot_dt$spc), type = "species_relab"))
+all_measure_mat <- cbind(all_measure_mat, t(mpa4_table_spc[unique(plot_dt$spc), ]))
+
+```
+
+
 ## misc pieces of code
 
-```{r}
-
-res_microbiota_simple <- res_microbiota %>% mutate(diff_median_relab = ifelse(Padj < 0.05, diff_median_relab, 0)) %>% 
-    mutate(shift = ifelse(diff_median_relab > 0, "up", "down")) %>%
-    mutate(shift = ifelse(diff_median_relab == 0, "NS", shift))  %>%
-    arrange(spc, comparison) %>% group_by(spc) %>% summarise(group_shift = paste(shift, collapse = "__")) %>%
-    filter(group_shift != "NS__NS__NS") %>% 
-    mutate(spc = str_remove(string = spc, ".*s__")) %>% 
-    mutate(FMT_effect = case_when(prel(group_shift) ~ )) 
-    
-
-plot_dt <- median_relab %>% left_join(res_microbiota_simple %>% distinct(spc, group_shift)) %>% na.omit()
-
-
-ggplot(data = plot_dt, 
-       aes(x = med_relab, y = reorder(spc, med_relab))) +
-    geom_point(aes(shape = name, fill = name), size = 2) + 
-    scale_shape_manual(values = c("after_FMT" = 21, "donor" = 22,  "before_FMT" = 23)) +
-    scale_fill_manual(values = c("after_FMT" = "#1f78b4", "donor" = "#b2df8a",  "before_FMT" = "#a6cee3")) +
-    theme_bw() + scale_x_log10() +
-    facet_grid(rows = vars(group_shift), 
-               scale = "free", space = "free")
-```
 
 
 Heatmap visualisation
 
-```{r}
+```{r echo=FALSE, eval=FALSE }
 
 res_microbiota_simple <- res_microbiota_simple %>% 
     group_by(spc) %>% filter(min(Padj) < 0.05) %>%
@@ -250,6 +246,115 @@ draw(h, heatmap_legend_side = "right", )
 
 
 
+
+
+
+
+# HUMAnN 3 - Pathways
+
+```{r}
+humann3_dt <- read_tsv(file = "../data/HUMAnN3_pathabundance.tsv", col_names = T, show_col_types = F)
+
+humann3_pathway_table <- data.frame(humann3_dt %>% select(-pathway), row.names = humann3_dt %>% pull(pathway), check.names = F )
+#colnames(humann3_pathway_table) <- str_replace(colnames(humann3_pathway_table), "\\.", "-")
+#colnames(humann3_pathway_table) <- str_extract(colnames(humann3_pathway_table) , pattern = "(HD|Cosmic)_[0-9]+")
+pathways_relab <- apply(humann3_pathway_table, 2, function(x) 100*x/sum(x))
+```
+
+
+## Test
+
+```{r}
+
+pathway_median_relab <- lapply(rownames(pathways_relab), function(x){
+    tmp <- pairwise_FMT_dt %>% filter(data == "shotgun_metagenomics") %>% distinct(name, sample) %>% filter( sample %in% colnames(pathways_relab)) 
+    tmp$pathway_abundance <- pathways_relab[x, tmp$sample]
+    res <- tmp %>% group_by(name) %>% 
+        summarise(med_relab = median(pathway_abundance)) %>%
+        mutate(pathway = x)
+    return(res)
+}) %>% do.call(., what= rbind)
+
+
+pathway_keep <- apply(pathways_relab, 1, function(x) sum(x > 0.05)/ncol(pathways_relab) >= 0.5)
+#pathway_keep <- apply(pathways_relab, 1, var) %>% sort() %>% head(n = nrow(pathways_relab) * 0.7) %>% names()
+pathways_relab_light <- pathways_relab[pathway_keep , ]
+
+
+
+res_pathway <- lapply(names(comparisons_grp_rm), 
+                         function(comparison){
+                             #grp_torm = "donor"
+                             tmp <- pairwise_FMT_dt %>% filter(data == "shotgun_metagenomics")  %>% 
+                                 filter(name != comparisons_grp_rm[comparison], sample %in% colnames(pathways_relab)) 
+                             tmp <- tmp %>% group_by(FMT_group) %>% filter(n() == 2) %>% ungroup()
+                             pathway_dt <- pathways_relab_light[, tmp$sample]
+                           
+                             res_test <- lapply(rownames(pathway_dt), function(x){
+                                 tmp$pathway_abundance <- pathway_dt[x, ]
+                                 if(var(tmp$pathway_abundance) == 0){ return(NULL)}
+                                 test <- wilcox_test(data = tmp, formula = pathway_abundance ~ name, paired = TRUE)
+                                 diff_median_relab <- tmp %>% group_by(name) %>% 
+                                     summarise(median_relab = median(pathway_abundance)) %>% 
+                                     pull(median_relab) %>% diff()
+                                 return(tibble(pathway = x, 
+                                               comparison = comparison, 
+                                               wilcox_p = test$p, 
+                                               diff_median_relab = diff_median_relab))
+                                 
+                             }) %>% do.call(., what= rbind)
+                             res_test$Padj <- p.adjust(res_test$wilcox_p, method = "BH")
+                             return(res_test)
+                         }) %>% do.call(., what= rbind)
+
+```
+
+
+
+
+```{r}
+
+
+tmp <- res_pathway %>% filter(comparison == "pre_post_FMT") %>% 
+    mutate(restored = ifelse(diff_median_relab < 0, "restored", "depleted")) %>% 
+    mutate(restored = ifelse(Padj < 0.01, restored, "NS")) %>% 
+    select(pathway, restored)
+
+tmp2 <- res_pathway %>% filter(comparison == "post_donor") %>% 
+    mutate(type_restoration = ifelse(diff_median_relab < 0, "over", "partial")) %>% 
+    mutate(type_restoration = ifelse(Padj < 0.01, type_restoration, "normal")) %>%
+    select(pathway, type_restoration)
+
+tmp <- full_join(tmp, tmp2) %>% mutate(FMT_effect = paste(restored, type_restoration)) %>% filter(!grepl(FMT_effect, pattern = "NS"))
+
+plot_dt <- pathway_median_relab %>% left_join(tmp) %>% na.omit()
+
+
+ggplot(data = plot_dt, 
+       aes(x = med_relab, y = reorder(pathway, med_relab))) +
+    geom_point(aes(shape = name, fill = name), size = 2) + 
+    scale_shape_manual(values = c("after_FMT" = 21, "donor" = 22,  "before_FMT" = 23)) +
+    scale_fill_manual(values = c("after_FMT" = "#1f78b4", "donor" = "#b2df8a",  "before_FMT" = "#a6cee3")) +
+    theme_bw() + scale_x_log10() +
+    ylab("") + xlab("Pathway median relative abundance (log10)") +
+    facet_grid(rows = vars(FMT_effect), 
+               scale = "free", space = "free") + 
+    theme(strip.text.y.right = element_text(angle = 0), 
+          strip.background = element_rect(linetype = "blank",
+                                           fill = "white"), 
+          legend.position = "bottom", 
+          axis.ticks.y = element_blank(), 
+          axis.text.y = element_text(size = 7))
+
+
+```
+
+
+```{r}
+all_measure_type <- all_measure_type %>% rbind(tibble(measure = unique(plot_dt$pathway), type = "pathway_relab"))
+all_measure_mat <- cbind(all_measure_mat, t(pathways_relab_light[unique(plot_dt$pathway), ]))
+
+```
 
 
 
@@ -369,18 +474,42 @@ ggplot(data = plot_dt,
 ```
 
 
+TODO take plasma resuts as well, but plasma HD are not feces HD
 
+```{r}
+
+metabo_site_list <- plot_dt %>% 
+    #filter(bodysite == "feces") %>%
+    mutate(metabo_site = paste(bodysite, metabolites, sep = "__")) %>% pull(metabo_site) %>% unique()
+# metabo feces and metabo plasma
+all_measure_type <- all_measure_type %>% rbind(tibble(measure = metabo_site_list, type = "metabolite"))
+
+
+feces_dt <- metabolomic_dt_limits %>% filter(bodysite == "feces") %>% select(-bodysite) 
+feces_dt <- data.frame(feces_dt %>% select(-sample),row.names = feces_dt$sample )
+colnames(feces_dt) <- paste0("feces__", colnames(feces_dt))
+
+plasma_dt <- metabolomic_dt_limits %>% filter(bodysite == "plasma") %>% select(-bodysite)
+plasma_dt <- data.frame(plasma_dt %>% select(-sample),row.names = plasma_dt$sample )
+colnames(plasma_dt) <- paste0("plasma__", colnames(plasma_dt))
+
+bodysite_dt <- merge(plasma_dt, feces_dt, by = "row.names", all = TRUE)
+rownames(bodysite_dt) <- bodysite_dt$Row.names
+
+all_measure_mat <- merge(all_measure_mat, bodysite_dt[, metabo_site_list], by = "row.names", all = TRUE)
+rownames(all_measure_mat) <- all_measure_mat$Row.names
+all_measure_mat <- all_measure_mat %>% select(-Row.names)
+
+```
 
 
 
 
 # SCENITH
 
-Pariwise test before after
+Pairwise test before after
 
 ```{r}
-
-
 
 scenith_dt <- read_tsv(file = "../data/scenith_data.tsv", col_names = T, show_col_types = F)
 
@@ -406,14 +535,31 @@ res_test <- lapply(unique(test_dt$cell_measure), function(x){
 
 res_test %>% filter(wilcox_Padj < 0.05)
 
+
 ```
 
 
+```{r}
+
+cell_measure_signif <- res_test %>% filter(wilcox_Padj < 0.05) %>% pull(cell_measure)
+
+all_measure_type <- rbind(all_measure_type, tibble(measure = cell_measure_signif, type = "SCENITH_measure"))
+
+
+scenith_dt_signif <- test_dt %>% filter(cell_measure %in% cell_measure_signif) %>% 
+    select(cell_measure, SCENITH_measure, sample) %>% 
+    pivot_wider(names_from = cell_measure, values_from = SCENITH_measure) 
+scenith_dt_signif <- data.frame(scenith_dt_signif %>% select(-sample), row.names = scenith_dt_signif$sample)
+
+all_measure_mat <- merge(all_measure_mat, scenith_dt_signif, by = "row.names", all = TRUE)
+rownames(all_measure_mat) <- all_measure_mat$Row.names
+all_measure_mat <- all_measure_mat %>% select(-Row.names)
+
+
+```
 
 
 Overall doorbell plot with shift to mean of HD
-
-
 
 ```{r}
 scenith_dt <- read_tsv(file = "../data/scenith_data.tsv", col_names = T, show_col_types = F)
@@ -448,15 +594,131 @@ ggplot(data = .,
 
 
 
+```{r}
+
+
+saveRDS(object = all_measure_mat, file = "../data/all_measure_signif.rds")
+write_tsv(all_measure_type, file = "../data/all_signif_measure_type.tsv", col_names = T)
+
+```
+
+
 # Targeted Correlations
 
 do correlation beetween stuff and visualize as graph
-build matrix with pariwise correlation of elements (metabo, spc, scenith)
+build matrix with pairwise correlation of elements (metabo, spc, scenith)
 
 1 element : 
 - scenith, 1 type measure, 
 - species abundance
 - metabo in bodysite
+
+
+```{r}
+all_measure_mat <- readRDS(file = "../data/all_measure_signif.rds")
+all_measure_type <- read_tsv(file = "../data/all_signif_measure_type.tsv", col_names = T, show_col_types = F)
+all_measure_type$measure <- str_replace_all(all_measure_type$measure, pattern = "/| ", ".")
+
+```
+
+
+
+```{r}
+sample_keep <- pairwise_FMT_dt %>% filter(name != "before_FMT") %>% pull(sample)
+
+data_for_corr_test <- all_measure_mat[sample_keep, ]
+
+corr_res <- lapply(combn(colnames(data_for_corr_test), m = 2, simplify = F), 
+       function(x){
+           tmp_dt <- data_for_corr_test[, x] %>% na.omit()
+           res <- cor.test(tmp_dt[, 1], tmp_dt[, 2], method = "spearman")
+           return(tibble(measure1 = x[1], 
+                         measure2 = x[2], 
+                         rho = res$estimate, 
+                         p = res$p.value))
+       }) %>% do.call(., what = rbind)
+
+corr_res$measure1 <- str_replace_all(corr_res$measure1, pattern = "/| ", ".")
+corr_res$measure2 <- str_replace_all(corr_res$measure2, pattern = "/| ", ".")
+
+
+
+corr_res_type <- corr_res %>% 
+    left_join(all_measure_type %>% select(measure1 = measure, type1 = type)) %>% 
+    left_join(all_measure_type %>% select(measure2 = measure, type2 = type)) %>%
+    filter(type1 != type2) %>%
+    mutate(Padj = p.adjust(p, method = "BH"))
+
+
+
+lol = corr_res_type %>% filter(Padj < 0.01)
+
+length(unique(c(lol$measure1, lol$measure2)))
+
+write_tsv(lol, file = "../data/correlation_results_signif.tsv", col_names = T)
+
+```
+
+
+
+
+
+```{r}
+library(igraph)
+
+lol <- read_tsv(file = "../data/correlation_results_signif.tsv", col_names = T, show_col_types = F) 
+lol$measure1 <- str_remove_all(lol$measure1, pattern = ".*:.")
+lol$measure2 <- str_remove_all(lol$measure2, pattern = ".*:.")
+
+lol <- lol %>% filter(type1 == "SCENITH_measure" | type2 == "SCENITH_measure")
+
+# focus on Monocytes
+#lol <- lol %>% filter(grepl(x= measure2, "Mono"))
+
+links <- data.frame(source=lol$measure1,
+                    target=lol$measure2,
+                    importance=lol$rho )
+
+nodes <- data.frame(rbind(lol %>% select(name = measure1, type = type1), 
+                          lol %>% select(name = measure2, type = type2)) %>% 
+                        distinct())
+
+g <- graph_from_data_frame(d = links, vertices = nodes , directed = F)
+#g <- graph_from_data_frame(d = lol, directed = F)
+
+library(viridis)
+coul  <- viridis(length(unique(nodes$type))) 
+my_color <- coul[as.numeric(as.factor(V(g)$type))]
+
+col_edge <- ifelse(E(g)$importance > 0, "#2c7bb6", "#d7191c")
+ 
+# Make the plot
+plot(g, 
+     vertex.color=my_color,
+     edge.color  = col_edge,
+     vertex.size = 3,
+     vertex.label.color="black", 
+     vertex.label.cex=0.5, 
+     layout=layout_with_fr)
+
+
+
+pdf(file = "../figures/SCENITH_measure_graph_corr.pdf", height = 15, width = 20)
+plot(g, 
+     vertex.color=my_color,
+     edge.color  = col_edge,
+     vertex.size = 3,
+     vertex.label.color="black", 
+     vertex.label.cex=0.5, 
+     layout=layout_with_fr)
+dev.off()
+
+
+
+
+
+```
+
 
 
 
