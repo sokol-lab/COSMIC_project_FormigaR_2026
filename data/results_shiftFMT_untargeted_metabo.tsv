@@ -1,0 +1,123 @@
+bodysite	metabolites	restored	type_restoration	FMT_effect	chem_name
+feces	93	restored	over	restored over	alpha-ketoglutarate
+feces	158	depleted	normal	depleted normal	5,6-dihydrothymine
+feces	171	restored	normal	restored normal	hypoxanthine
+feces	240	depleted	normal	depleted normal	3-(4-hydroxyphenyl)lactate (HPLA)
+feces	275	depleted	normal	depleted normal	creatinine
+feces	302	restored	normal	restored normal	deoxycholate
+feces	313	restored	normal	restored normal	sphinganine
+feces	342	depleted	partial	depleted partial	glycocholate
+feces	344	depleted	normal	depleted normal	guanidinoacetate
+feces	480	depleted	normal	depleted normal	proline
+feces	536	restored	normal	restored normal	2'-deoxyuridine
+feces	799	depleted	normal	depleted normal	betaine
+feces	925	restored	normal	restored normal	heptanoate (7:0)
+feces	926	restored	normal	restored normal	caproate (6:0)
+feces	1004	restored	normal	restored normal	xanthine
+feces	1090	depleted	normal	depleted normal	bilirubin
+feces	1134	restored	normal	restored normal	urate
+feces	1215	restored	normal	restored normal	N-acetylglucosaminylasparagine
+feces	1221	depleted	normal	depleted normal	creatine
+feces	1254	restored	normal	restored normal	glycerol
+feces	1628	depleted	partial	depleted partial	glycochenodeoxycholate
+feces	2054	restored	normal	restored normal	ethylmalonate
+feces	100000010	restored	normal	restored normal	3-phenylpropionate (hydrocinnamate)
+feces	100000039	restored	normal	restored normal	methionine sulfoxide
+feces	100000257	depleted	normal	depleted normal	glucuronate
+feces	100000463	depleted	normal	depleted normal	indolelactate
+feces	100000656	depleted	normal	depleted normal	1-stearoyl-GPI (18:0)
+feces	100000706	depleted	normal	depleted normal	alpha-hydroxyisocaproate
+feces	100000774	depleted	normal	depleted normal	phenyllactate (PLA)
+feces	100000776	depleted	normal	depleted normal	palmitoylcarnitine (C16)
+feces	100000787	restored	normal	restored normal	N-acetylaspartate (NAA)
+feces	100000846	depleted	normal	depleted normal	erythritol
+feces	100000863	restored	normal	restored normal	adipate
+feces	100001148	restored	normal	restored normal	5-hydroxyhexanoate
+feces	100001167	depleted	normal	depleted normal	prolylhydroxyproline
+feces	100001211	restored	normal	restored normal	sebacate (C10-DC)
+feces	100001251	depleted	normal	depleted normal	decanoylcarnitine (C10)
+feces	100001263	depleted	partial	depleted partial	1-palmitoyl-GPC (16:0)
+feces	100001270	depleted	normal	depleted normal	myristoylcarnitine (C14)
+feces	100001271	depleted	normal	depleted normal	1-stearoyl-GPC (18:0)
+feces	100001315	restored	normal	restored normal	p-cresol sulfate
+feces	100001392	depleted	normal	depleted normal	laurylcarnitine (C12)
+feces	100001396	depleted	normal	depleted normal	7-methylxanthine
+feces	100001456	depleted	normal	depleted normal	7-methylguanine
+feces	100001501	depleted	normal	depleted normal	oleoylcarnitine (C18:1)
+feces	100001509	depleted	normal	depleted normal	2-methylbutyrylcarnitine (C5)
+feces	100001510	depleted	normal	depleted normal	phenol sulfate
+feces	100001541	depleted	normal	depleted normal	2-hydroxy-3-methylvalerate
+feces	100001562	depleted	normal	depleted normal	2-palmitoyl-GPC (16:0)*
+feces	100001586	depleted	normal	depleted normal	gulonate*
+feces	100001614	restored	normal	restored normal	hexadecanedioate (C16)
+feces	100001617	restored	normal	restored normal	undecanedioate (C11-DC)
+feces	100001810	depleted	normal	depleted normal	dimethylarginine (ADMA + SDMA)
+feces	100001956	restored	partial	restored partial	N-methylproline
+feces	100001988	depleted	normal	depleted normal	5alpha-pregnan-3beta,20alpha-diol disulfate
+feces	100001989	depleted	normal	depleted normal	glycocholenate sulfate*
+feces	100001999	depleted	normal	depleted normal	21-hydroxypregnenolone disulfate
+feces	100002293	restored	partial	restored partial	phenylalanylphenylalanine
+feces	100002344	restored	partial	restored partial	(12 or 13)-methylmyristate (a15:0 or i15:0)
+feces	100002910	restored	normal	restored normal	1-methyl-5-imidazoleacetate
+feces	100003151	depleted	normal	depleted normal	linoleoylcarnitine (C18:2)*
+feces	100003163	restored	partial	restored partial	isoleucylalanine
+feces	100003258	depleted	normal	depleted normal	2-O-methylascorbic acid
+feces	100004318	restored	normal	restored normal	indolin-2-one
+feces	100006435	restored	normal	restored normal	N-acetylglucosamine/N-acetylgalactosamine
+feces	100006614	depleted	normal	depleted normal	adipoylcarnitine (C6-DC)
+feces	100006641	depleted	normal	depleted normal	glycochenodeoxycholate 3-sulfate
+feces	100008934	restored	normal	restored normal	2-hydroxylaurate
+feces	100008939	restored	partial	restored partial	isoleucylleucine/leucylisoleucine
+feces	100009030	depleted	normal	depleted normal	lactosyl-N-palmitoyl-sphingosine (d18:1/16:0)
+feces	100009271	depleted	normal	depleted normal	(S)-3-hydroxybutyrylcarnitine
+plasma	235	depleted	normal	depleted normal	2-hydroxyphenylacetate
+plasma	302	restored	normal	restored normal	deoxycholate
+plasma	344	restored	normal	restored normal	guanidinoacetate
+plasma	391	restored	normal	restored normal	citrulline
+plasma	480	restored	normal	restored normal	proline
+plasma	533	restored	normal	restored normal	urea
+plasma	1052	depleted	normal	depleted normal	glycerate
+plasma	100000014	restored	normal	restored normal	hippurate
+plasma	100000463	restored	normal	restored normal	indolelactate
+plasma	100000467	restored	normal	restored normal	3-indoxyl sulfate
+plasma	100000708	restored	normal	restored normal	isovalerate (C5)
+plasma	100000715	depleted	normal	depleted normal	1-methylguanidine
+plasma	100000840	depleted	normal	depleted normal	tartronate (hydroxymalonate)
+plasma	100000841	depleted	normal	depleted normal	oxalate (ethanedioate)
+plasma	100001022	depleted	normal	depleted normal	threonate
+plasma	100001055	restored	normal	restored normal	isobutyrylcarnitine (C4)
+plasma	100001064	restored	normal	restored normal	glycolithocholate
+plasma	100001083	restored	normal	restored normal	indolepropionate
+plasma	100001162	restored	normal	restored normal	propionylcarnitine (C3)
+plasma	100001258	depleted	normal	depleted normal	glycylleucine
+plasma	100001315	restored	normal	restored normal	p-cresol sulfate
+plasma	100001417	restored	normal	restored normal	phenylacetylglutamine
+plasma	100001550	depleted	normal	depleted normal	homostachydrine*
+plasma	100001605	restored	normal	restored normal	catechol sulfate
+plasma	100001657	restored	normal	restored normal	glycolithocholate sulfate*
+plasma	100001658	restored	normal	restored normal	taurolithocholate 3-sulfate
+plasma	100002122	restored	normal	restored normal	3-hydroxyhippurate
+plasma	100002488	restored	normal	restored normal	isoursodeoxycholate
+plasma	100002537	depleted	normal	depleted normal	4-hydroxy-2-oxoglutaric acid
+plasma	100002911	restored	normal	restored normal	glycoursodeoxycholate
+plasma	100003258	depleted	normal	depleted normal	2-O-methylascorbic acid
+plasma	100003397	restored	normal	restored normal	trimethylamine N-oxide
+plasma	100004111	restored	normal	restored normal	4-methylcatechol sulfate
+plasma	100004112	restored	normal	restored normal	3-methyl catechol sulfate (1)
+plasma	100004208	restored	normal	restored normal	guaiacol sulfate
+plasma	100004295	restored	normal	restored normal	2-piperidinone
+plasma	100004322	restored	normal	restored normal	2-aminophenol sulfate
+plasma	100006056	depleted	normal	depleted normal	N-formylphenylalanine
+plasma	100006098	restored	normal	restored normal	3-hydroxypyridine sulfate
+plasma	100006105	restored	normal	restored normal	4-methylguaiacol sulfate
+plasma	100006191	restored	normal	restored normal	p-cresol glucuronide*
+plasma	100006203	depleted	normal	depleted normal	acesulfame
+plasma	100006260	restored	normal	restored normal	6-hydroxyindole sulfate
+plasma	100006374	restored	normal	restored normal	1,2,3-benzenetriol sulfate (2)
+plasma	100006614	depleted	normal	depleted normal	adipoylcarnitine (C6-DC)
+plasma	100009329	depleted	normal	depleted normal	ascorbic acid 2-sulfate
+plasma	100020015	restored	normal	restored normal	glucuronide of C10H18O2 (8)*
+plasma	100020254	depleted	normal	depleted normal	glycine conjugate of C10H14O2 (1)*
+plasma	100020409	depleted	normal	depleted normal	ascorbic acid 3-sulfate*
+plasma	100020536	restored	normal	restored normal	4-ethylcatechol sulfate
+plasma	100020578	restored	normal	restored normal	4-allylcatechol sulfate

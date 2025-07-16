@@ -51,15 +51,12 @@ Then look for engraftment of species (% of abundance of species coming from dono
 
 Build matrix of significant measurements (bacteria, metabolites, SCENITH ) to look for correlation
 
-
 ```{r}
 
 all_measure_mat <- NULL
 all_measure_type <- tibble()
 
-
 ```
-
 
 
 # Microbiota data
@@ -358,7 +355,7 @@ all_measure_mat <- cbind(all_measure_mat, t(pathways_relab_light[unique(plot_dt$
 
 
 
-# Metabolites
+# Metabolites - Targeted
 
 Careful Cosmic_9 missing from metabo data feces
 
@@ -503,6 +500,291 @@ all_measure_mat <- all_measure_mat %>% select(-Row.names)
 ```
 
 
+# Metabolites - Untargeted
+
+## DATA
+
+```{r}
+
+feces_sample_metadata <- readxl::read_xlsx(path = "../RAW_metabo_untargeted/HSAE-01-24MD+ DATA TABLES (HUMAN FECES).XLSX", sheet = 3) %>% filter(!is.na(GROUP_ID))
+feces_chemical_metadata <- readxl::read_xlsx(path = "../RAW_metabo_untargeted/HSAE-01-24MD+ DATA TABLES (HUMAN FECES).XLSX", sheet = 2)
+feces_log_data <- readxl::read_xlsx(path = "../RAW_metabo_untargeted/HSAE-01-24MD+ DATA TABLES (HUMAN FECES).XLSX", sheet = 7)
+feces_log_data <- data.frame(feces_log_data %>% select(-PARENT_SAMPLE_NAME), row.names = feces_log_data$PARENT_SAMPLE_NAME)
+
+# Plasma data
+plasma_sample_metadata <- readxl::read_xlsx(path = "../RAW_metabo_untargeted/HSAE-01-24MD+ DATA TABLES (HUMAN PLASMA).XLSX", sheet = 3) %>% filter(!is.na(GROUP_ID))
+plasma_chemical_metadata <- readxl::read_xlsx(path = "../RAW_metabo_untargeted/HSAE-01-24MD+ DATA TABLES (HUMAN PLASMA).XLSX", sheet = 2)
+plasma_log_data <- readxl::read_xlsx(path = "../RAW_metabo_untargeted/HSAE-01-24MD+ DATA TABLES (HUMAN PLASMA).XLSX", sheet = 7)
+plasma_log_data <- data.frame(plasma_log_data %>% select(-PARENT_SAMPLE_NAME), row.names = plasma_log_data$PARENT_SAMPLE_NAME)
+
+```
+
+
+
+Test
+
+```{r}
+comparisons_grp_rm2 <- c("pre_post_FMT" = "Healthy", "pre_donor" = "Post_FMT", "post_donor" = "Pre_FMT")
+
+res_metabo_unterg <- lapply(names(comparisons_grp_rm2), 
+                         function(comparison){
+                             print(comparison)
+                             lapply(c("feces", "plasma"), function(SITE){
+                                 print(SITE)
+                                 
+                                 if(SITE == "feces"){
+                                     metabo_measure <- feces_log_data                                         
+                                     sample_dt <- feces_sample_metadata
+                                     chem_md <- feces_chemical_metadata
+                                     fmt_grp_dt <- pairwise_FMT_dt %>% filter(data == "shotgun_metagenomics")
+                                 } else {
+                                     metabo_measure <- plasma_log_data
+                                     sample_dt <- plasma_sample_metadata
+                                     chem_md <- plasma_chemical_metadata
+                                     fmt_grp_dt <- pairwise_FMT_dt %>% filter(data == "blood_scenith")
+
+                                 }
+                                 
+                                 sample_dt <- sample_dt %>% dplyr::filter(GROUP_ID != comparisons_grp_rm2[comparison]) %>% 
+                                     left_join(fmt_grp_dt %>% select(sample_id = sample, FMT_group)) %>%
+                                     group_by(FMT_group) %>% dplyr::filter(n() == 2) %>% ungroup()
+                                 metabo_measure <- metabo_measure[sample_dt$PARENT_SAMPLE_NAME, ] %>% na.omit()
+                                 
+                                 
+                                 
+                                 res_test <- lapply(colnames(metabo_measure), function(x){
+                                     #print(x)
+                                     sample_dt$concentration <- metabo_measure[, x]
+                                     if(var(sample_dt$concentration) == 0){ return(NULL)}
+                                     test <- wilcox_test(data = sample_dt, formula = concentration ~ GROUP_ID, paired = TRUE)
+                                     diff_median_conc <- sample_dt %>% group_by(GROUP_ID) %>% 
+                                         summarise(median_conc = median(concentration)) %>% 
+                                         pull(median_conc) %>% diff()
+                                     return(tibble(metabolites = x, 
+                                                   comparison = comparison, 
+                                                   wilcox_p = test$p, 
+                                                   diff_median_conc = diff_median_conc, 
+                                                   bodysite = SITE))
+                                 }) %>% do.call(., what= rbind)
+                                 
+                                 res_test$Padj <- p.adjust(res_test$wilcox_p, method = "BH")
+                                 
+                                 res_test <- res_test %>% left_join(chem_md %>% 
+                                                                        mutate(CHEM_ID = paste0("X", CHEM_ID)) %>% 
+                                                                        select(metabolites = CHEM_ID, CHEMICAL_NAME, SUPER_PATHWAY, SUB_PATHWAY) )
+                                 
+                                 return(res_test)
+                             }) %>% do.call(., what = rbind)
+                         }) %>% do.call(., what = rbind)
+
+
+
+```
+
+
+
+```{r}
+
+tmp <- res_metabo_unterg %>% filter(comparison == "pre_post_FMT") %>% 
+    group_by(bodysite) %>%
+    mutate(restored = ifelse(diff_median_conc < 0, "restored", "depleted")) %>% 
+    mutate(restored = ifelse(Padj < 0.05, restored, "NS")) %>% 
+    select(metabolites, restored)
+
+
+tmp2 <- res_metabo_unterg %>% filter(comparison == "post_donor") %>% 
+    group_by(bodysite) %>%
+    mutate(type_restoration = ifelse(diff_median_conc < 0, "over", "partial")) %>% 
+    mutate(type_restoration = ifelse(Padj < 0.05, type_restoration, "normal")) %>%
+    select(metabolites, type_restoration)
+
+    
+untarg_metabolites_shift <- full_join(tmp, tmp2) %>% mutate(FMT_effect = paste(restored, type_restoration)) %>% filter(!grepl(FMT_effect, pattern = "NS")) %>%
+    mutate(metabolites = str_remove(metabolites, "X")) %>% 
+    left_join(plasma_chemical_metadata %>% mutate(metabolites = as.character(CHEM_ID)) %>% select(metabolites, chem_name = PLOT_NAME)) %>%
+    left_join(feces_chemical_metadata %>% mutate(metabolites = as.character(CHEM_ID)) %>% select(metabolites, chem_name = PLOT_NAME)) %>%
+    na.omit()
+
+write_tsv(untarg_metabolites_shift, file = "../data/results_shiftFMT_untargeted_metabo.tsv", col_names = T)
+
+```
+
+
+### Visualize
+
+
+```{r}
+untarg_metabolites_shift <- read_tsv(file = "../data/results_shiftFMT_untargeted_metabo.tsv", col_names = T, show_col_types = F)
+untarg_metabolites_shift <- untarg_metabolites_shift %>% mutate(chem_name = paste0(bodysite, "_untarg_", chem_name))
+
+# PLASMA
+mapping_names_untarg_plasma <- plasma_sample_metadata$sample_id
+names(mapping_names_untarg_plasma) <- plasma_sample_metadata$PARENT_SAMPLE_NAME
+plasma_keep <- plasma_log_data
+rownames(plasma_keep) <- mapping_names_untarg_plasma[rownames(plasma_keep)]
+metabo_plasma_keep <- untarg_metabolites_shift %>% filter(bodysite == "plasma") %>% pull(metabolites)
+metabo_plasma_keep <- paste0("X", metabo_plasma_keep)
+plasma_keep <- plasma_keep[, metabo_plasma_keep]
+
+x <- plasma_chemical_metadata %>% 
+    mutate(metabolites =  paste0("X", CHEM_ID)) %>% select(metabolites, chem_name = PLOT_NAME) %>% 
+    filter(metabolites %in% metabo_plasma_keep) %>%
+    mutate(chem_name = paste0("plasma_untarg_", chem_name))
+mapp_chem <- x$chem_name
+names(mapp_chem) <- x$metabolites
+colnames(plasma_keep) <- mapp_chem[colnames(plasma_keep)]
+
+plasma_keep$sample_id <- rownames(plasma_keep)
+
+plasma_keep <- plasma_keep %>% pivot_longer(-sample_id, values_to = "untarg_metabo_measure", names_to = "chem_name") %>% 
+    mutate(bodysite = "plasma") %>%
+    left_join(plasma_sample_metadata %>% select(sample_id, GROUP_ID)) %>% 
+    left_join(untarg_metabolites_shift )
+
+
+plot_dt <- plasma_keep %>% group_by(bodysite, chem_name, GROUP_ID, FMT_effect) %>% 
+    summarise(median_value = median(untarg_metabo_measure))
+
+
+ggplot(data = plot_dt, 
+       aes(x = median_value, y = reorder(chem_name, median_value))) +
+    geom_point(aes(shape = GROUP_ID, fill = GROUP_ID), size = 2) + 
+    scale_shape_manual(values = c("Post_FMT" = 21, "Healthy" = 22,  "Pre_FMT" = 23)) +
+    scale_fill_manual(values = c("Post_FMT" = "#1f78b4", "Healthy" = "#b2df8a",  "Pre_FMT" = "#a6cee3")) +
+    theme_bw() + scale_x_log10() +
+    ylab("") + xlab("Median value (log10)") +
+    facet_grid(rows = vars(FMT_effect), cols = vars(bodysite),
+               scale = "free", space = "free") + 
+    theme(strip.text.y.right = element_text(angle = 0), 
+          strip.background = element_rect(linetype = "blank",
+                                           fill = "white"), 
+          legend.position = "bottom", 
+          axis.ticks.y = element_blank())
+
+
+```
+
+
+```{r}
+
+# FECAL
+mapping_names_untarg_feces <- feces_sample_metadata$sample_id
+names(mapping_names_untarg_feces) <- feces_sample_metadata$PARENT_SAMPLE_NAME
+feces_keep <- feces_log_data
+rownames(feces_keep) <- mapping_names_untarg_feces[rownames(feces_keep)]
+metabo_feces_keep <- untarg_metabolites_shift %>% filter(bodysite == "feces") %>% pull(metabolites)
+metabo_feces_keep <- paste0("X", metabo_feces_keep)
+feces_keep <- feces_keep[, metabo_feces_keep]
+
+x <- feces_chemical_metadata %>% 
+    mutate(metabolites =  paste0("X", CHEM_ID)) %>% select(metabolites, chem_name = PLOT_NAME) %>% 
+    filter(metabolites %in% metabo_feces_keep) %>%
+    mutate(chem_name = paste0("feces_untarg_", chem_name))
+mapp_chem <- x$chem_name
+names(mapp_chem) <- x$metabolites
+colnames(feces_keep) <- mapp_chem[colnames(feces_keep)]
+
+feces_keep$sample_id <- rownames(feces_keep)
+
+feces_keep <- feces_keep %>% pivot_longer(-sample_id, values_to = "untarg_metabo_measure", names_to = "chem_name") %>% 
+    mutate(bodysite = "feces") %>%
+    left_join(feces_sample_metadata %>% select(sample_id, GROUP_ID)) %>% 
+    left_join(untarg_metabolites_shift )
+
+
+plot_dt <- feces_keep %>% group_by(bodysite, chem_name, GROUP_ID, FMT_effect) %>% 
+    summarise(median_value = median(untarg_metabo_measure))
+
+
+ggplot(data = plot_dt, 
+       aes(x = median_value, y = reorder(chem_name, median_value))) +
+    geom_point(aes(shape = GROUP_ID, fill = GROUP_ID), size = 2) + 
+    scale_shape_manual(values = c("Post_FMT" = 21, "Healthy" = 22,  "Pre_FMT" = 23)) +
+    scale_fill_manual(values = c("Post_FMT" = "#1f78b4", "Healthy" = "#b2df8a",  "Pre_FMT" = "#a6cee3")) +
+    theme_bw() +
+    ylab("") + xlab("Median value") +
+    facet_grid(rows = vars(FMT_effect), cols = vars(bodysite),
+               scale = "free", space = "free") + 
+    theme(strip.text.y.right = element_text(angle = 0), 
+          strip.background = element_rect(linetype = "blank",
+                                           fill = "white"), 
+          legend.position = "bottom", 
+          axis.ticks.y = element_blank())
+
+```
+
+
+
+
+
+### add to measure matrix and measure list
+
+```{r}
+all_measure_mat <- readRDS(file = "../data/all_measure_signif.rds")
+all_measure_type <- read_tsv(file = "../data/all_signif_measure_type.tsv", col_names = T, show_col_types = F)
+```
+
+
+```{r}
+mapping_names_untarg_plasma <- plasma_sample_metadata$sample_id
+names(mapping_names_untarg_plasma) <- plasma_sample_metadata$PARENT_SAMPLE_NAME
+
+plasma_keep <- plasma_log_data
+rownames(plasma_keep) <- mapping_names_untarg_plasma[rownames(plasma_keep)]
+metabo_plasma_keep <- untarg_metabolites_shift %>% filter(bodysite == "plasma") %>% pull(metabolites)
+metabo_plasma_keep <- paste0("X", metabo_plasma_keep)
+plasma_keep <- plasma_keep[, metabo_plasma_keep]
+
+x <- plasma_chemical_metadata %>% 
+    mutate(metabolites =  paste0("X", CHEM_ID)) %>% select(metabolites, chem_name = PLOT_NAME) %>% 
+    filter(metabolites %in% metabo_plasma_keep) %>%
+    mutate(chem_name = paste0("plasma_untarg_", chem_name))
+mapp_chem <- x$chem_name
+names(mapp_chem) <- x$metabolites
+colnames(plasma_keep) <- mapp_chem[colnames(plasma_keep)]
+
+plasma_keep[setdiff(rownames(all_measure_mat), rownames(plasma_keep)), ] <- NA
+all_measure_mat <- cbind(all_measure_mat, plasma_keep )
+
+all_measure_type <- all_measure_type %>% rbind(tibble(measure = unique(x$chem_name), type = "plasma_untarg_metabo"))
+
+
+# feces ----------------------------------------------------------------------- 
+mapping_names_untarg_feces <- feces_sample_metadata$sample_id
+names(mapping_names_untarg_feces) <- feces_sample_metadata$PARENT_SAMPLE_NAME
+
+feces_keep <- feces_log_data
+rownames(feces_keep) <- mapping_names_untarg_feces[rownames(feces_keep)]
+metabo_feces_keep <- untarg_metabolites_shift %>% filter(bodysite == "feces") %>% pull(metabolites)
+metabo_feces_keep <- paste0("X", metabo_feces_keep)
+feces_keep <- feces_keep[, metabo_feces_keep]
+
+x <- feces_chemical_metadata %>% 
+    mutate(metabolites =  paste0("X", CHEM_ID)) %>% select(metabolites, chem_name = PLOT_NAME) %>% 
+    filter(metabolites %in% metabo_feces_keep) %>%
+    mutate(chem_name = paste0("feces_untarg_", chem_name))
+mapp_chem <- x$chem_name
+names(mapp_chem) <- x$metabolites
+colnames(feces_keep) <- mapp_chem[colnames(feces_keep)]
+
+feces_keep[setdiff(rownames(all_measure_mat), rownames(feces_keep)), ] <- NA
+all_measure_mat <- cbind(all_measure_mat, feces_keep )
+
+all_measure_type <- all_measure_type %>% rbind(tibble(measure = unique(x$chem_name), type = "feces_untarg_metabo"))
+
+```
+
+
+save updated results 
+
+```{r}
+
+saveRDS(object = all_measure_mat, file = "../data/all_measure_signif.rds")
+write_tsv(all_measure_type, file = "../data/all_signif_measure_type.tsv", col_names = T)
+
+```
+
+
 
 
 # SCENITH
@@ -520,20 +802,25 @@ test_dt <- scenith_dt %>%
     mutate(cell_measure = paste(cell_type, type_measure, sep="__"))
 
 res_test <- lapply(unique(test_dt$cell_measure), function(x){
-
-                    tmp <- test_dt %>% filter(cell_measure == x) %>%
-                        group_by(FMT_group) %>% filter(n() ==  2) %>% arrange(FMT_group) %>% ungroup()
-                    
-                    test <- wilcox_test(data = tmp, formula = SCENITH_measure ~ group, paired = TRUE)
-                    effsize <- wilcox_effsize(data = tmp, formula = SCENITH_measure ~ group, paired = TRUE)
-                    
-                    return(tibble(cell_measure = x, 
-                                  wilcox_p = test$p, 
-                                  wilcox_effsize = effsize$effsize))
+    
+    tmp <- test_dt %>% filter(cell_measure == x) %>%
+        group_by(FMT_group) %>% filter(n() ==  2) %>% arrange(FMT_group) %>% ungroup()
+    
+    test <- wilcox_test(data = tmp, formula = SCENITH_measure ~ group, paired = TRUE)
+    effsize <- wilcox_effsize(data = tmp, formula = SCENITH_measure ~ group, paired = TRUE)
+    
+    return(tibble(cell_measure = x, 
+                  wilcox_p = test$p, 
+                  wilcox_effsize = effsize$effsize))
 }) %>% do.call(., what = rbind) %>% mutate(wilcox_Padj = p.adjust(wilcox_p, method = "BH"))
 
 
-res_test %>% filter(wilcox_Padj < 0.05)
+res_test_signif <- res_test %>% filter(wilcox_Padj < 0.05)
+
+res_test_signif <- res_test_signif %>% 
+    mutate(type_measure = str_remove_all(cell_measure, pattern = ".*__" ), 
+           cell_type = str_remove_all(cell_measure, pattern = "__.*")) %>% 
+    select(cell_type, type_measure, wilcox_Padj)
 
 
 ```
@@ -568,23 +855,30 @@ plot_dt <- scenith_dt %>% select(-sample) %>%
     pivot_longer(-c(type_measure, group), names_to = "cell_type", values_to = "SCENITH_measure") %>%
     group_by(type_measure, group, cell_type) %>% summarise(avg_SCENITH = mean(SCENITH_measure)) %>%
     pivot_wider(id_cols = c(type_measure, cell_type), 
-                                   values_from = avg_SCENITH, 
-                                   names_from = group, names_prefix = "avg_SCENITH_") %>%
+                values_from = avg_SCENITH, 
+                names_from = group, names_prefix = "avg_SCENITH_") %>%
     mutate(shift_after_FMT = avg_SCENITH_HD - avg_SCENITH_after_FMT, 
-           shift_before_FMT = avg_SCENITH_HD - avg_SCENITH_before_FMT)
-
-
-plot_dt %>% select(-avg_SCENITH_HD, -avg_SCENITH_after_FMT, -avg_SCENITH_before_FMT) %>%
+           shift_before_FMT = avg_SCENITH_HD - avg_SCENITH_before_FMT) %>% 
+    select(-avg_SCENITH_HD, -avg_SCENITH_after_FMT, -avg_SCENITH_before_FMT) %>%
     pivot_longer(cols = c(shift_after_FMT, shift_before_FMT), 
-                 names_to = "before_after", values_to = "shift") %>%
-ggplot(data = ., 
+                 names_to = "before_after", values_to = "shift") 
+
+plot_dt <- plot_dt %>% left_join(res_test_signif) %>% 
+    mutate(color = ifelse(is.na(wilcox_Padj), "NS", before_after))
+
+
+ggplot(data = plot_dt, 
        aes(x = shift, y = reorder(cell_type, shift))) + 
-     geom_segment( aes(x=shift, xend=0, y=cell_type, yend=cell_type), color="grey") +
-        geom_point(aes(shape = before_after, fill = before_after), size = 3) + 
+    geom_segment( aes(x=shift, xend=0, y=cell_type, yend=cell_type), color="grey") +
+    geom_point(aes(shape = before_after, fill = color), size = 3) + 
     geom_vline(xintercept = 0) + 
-      scale_shape_manual(values = c("shift_after_FMT" = 21, "shift_before_FMT" = 23)) +
-    scale_fill_manual(values = c("shift_after_FMT" = "#1f78b4",  "shift_before_FMT" = "#a6cee3")) +
+    scale_shape_manual(values = c("shift_after_FMT" = 21, "shift_before_FMT" = 23), 
+                       labels = c("shift_after_FMT" = "after", "shift_before_FMT" = "before")) +
+    scale_fill_manual(values = c("shift_after_FMT" = "#1f78b4",  "shift_before_FMT" = "#a6cee3", 
+                                 "NS" = "white"),
+                      guide = "none") +
     theme_bw() + 
+    guides(shape = guide_legend(title = "Before/After FMT")) +
     ylab("") + xlab("Average SCENITH measurement") +
     facet_grid(cols = vars(type_measure), scale = "free")
 
@@ -638,8 +932,8 @@ corr_res <- lapply(combn(colnames(data_for_corr_test), m = 2, simplify = F),
                          p = res$p.value))
        }) %>% do.call(., what = rbind)
 
-corr_res$measure1 <- str_replace_all(corr_res$measure1, pattern = "/| ", ".")
-corr_res$measure2 <- str_replace_all(corr_res$measure2, pattern = "/| ", ".")
+# corr_res$measure1 <- str_replace_all(corr_res$measure1, pattern = "/| ", ".")
+# corr_res$measure2 <- str_replace_all(corr_res$measure2, pattern = "/| ", ".")
 
 
 
@@ -651,7 +945,7 @@ corr_res_type <- corr_res %>%
 
 
 
-lol = corr_res_type %>% filter(Padj < 0.01)
+lol = corr_res_type %>% filter(Padj < 0.05)
 
 length(unique(c(lol$measure1, lol$measure2)))
 
@@ -665,12 +959,20 @@ write_tsv(lol, file = "../data/correlation_results_signif.tsv", col_names = T)
 
 ```{r}
 library(igraph)
+library(viridis)
 
 lol <- read_tsv(file = "../data/correlation_results_signif.tsv", col_names = T, show_col_types = F) 
 lol$measure1 <- str_remove_all(lol$measure1, pattern = ".*:.")
 lol$measure2 <- str_remove_all(lol$measure2, pattern = ".*:.")
 
+
+scenith_corr_signif <- lol %>% filter(type1 == "SCENITH_measure" | type2 == "SCENITH_measure")
+measure_keep <- unique(c(scenith_corr_signif$measure1, scenith_corr_signif$measure2))
+lol <- lol %>% filter(measure1 %in% measure_keep | measure2 %in% measure_keep)
+
+# OR
 lol <- lol %>% filter(type1 == "SCENITH_measure" | type2 == "SCENITH_measure")
+
 
 # focus on Monocytes
 #lol <- lol %>% filter(grepl(x= measure2, "Mono"))
@@ -686,7 +988,7 @@ nodes <- data.frame(rbind(lol %>% select(name = measure1, type = type1),
 g <- graph_from_data_frame(d = links, vertices = nodes , directed = F)
 #g <- graph_from_data_frame(d = lol, directed = F)
 
-library(viridis)
+
 coul  <- viridis(length(unique(nodes$type))) 
 my_color <- coul[as.numeric(as.factor(V(g)$type))]
 
@@ -714,11 +1016,105 @@ plot(g,
 dev.off()
 
 
+```
 
 
+
+```{r}
+
+# graph might not be the best visualization 
+# TODO scatter
+
+
+plot_SCENITH_measure_focus <- function(x = "Mono.intermediate__Mitochondrial.dependence", second_connection = FALSE){
+    
+    dt <- read_tsv(file = "../data/correlation_results_signif.tsv", col_names = T, show_col_types = F) 
+    dt$measure1 <- str_remove_all(dt$measure1, pattern = ".*:.")
+    dt$measure2 <- str_remove_all(dt$measure2, pattern = ".*:.")
+    lol <- dt %>% filter(measure1 == x | measure2 == x)
+    
+    if(second_connection) {
+        first_connection <- unique(c(lol$measure1, lol$measure2))
+        lol2 <- dt %>% filter(measure1 %in% first_connection | measure2 %in% first_connection)
+        lol <- rbind(lol, lol2)
+    }
+    
+    links <- data.frame(source=lol$measure1,
+                        target=lol$measure2,
+                        importance=lol$rho )
+    nodes <- data.frame(rbind(lol %>% select(name = measure1, type = type1), 
+                              lol %>% select(name = measure2, type = type2)) %>% 
+                            distinct())
+    g <- graph_from_data_frame(d = links, vertices = nodes , directed = F)
+
+    coul  <- viridis(length(unique(nodes$type))) 
+    my_color <- coul[as.numeric(as.factor(V(g)$type))]
+    
+    col_edge <- ifelse(E(g)$importance > 0, "#2c7bb6", "#d7191c")
+    
+    # Make the plot
+    plot(g, 
+         vertex.color= my_color,
+         edge.color  = col_edge,
+         edge.width=abs(E(g)$importance)*2,
+         vertex.size = 4,
+         vertex.label.color="black", 
+         vertex.label.cex=0.8, 
+         layout=layout_with_fr)
+    
+}
+
+plot_SCENITH_measure_focus()
 
 ```
 
+
+```{r}
+
+plot_SCENITH_measure_focus_scatter <- function(x = "Mono.intermediate__Mitochondrial.dependence"){
+    
+    dt <- read_tsv(file = "../data/correlation_results_signif.tsv", col_names = T, show_col_types = F) 
+    all_measure_mat <- readRDS(file = "../data/all_measure_signif.rds")
+    colnames(all_measure_mat) <- str_replace_all(colnames(all_measure_mat), pattern = " ", "." )
+    #dt$measure1 <- str_remove_all(dt$measure1, pattern = ".*:.")
+    #dt$measure2 <- str_remove_all(dt$measure2, pattern = ".*:.")
+    lol <- dt %>% filter(measure1 == x | measure2 == x)
+    all_measures <- unique(c(lol$measure1, lol$measure2))
+   
+    all_measure_dt <- all_measure_mat[, all_measures]
+    all_measure_dt$sample <- rownames(all_measure_dt)
+    all_measure_dt <- all_measure_dt %>% 
+        pivot_longer(-sample, names_to = "measure", values_to = "value") %>% 
+        left_join(pairwise_FMT_dt %>% select(sample, group = name))
+    
+    
+    plots_corr <- lapply(unique(all_measure_dt$measure),
+                         function(m){
+                             tmp <- all_measure_dt %>% filter(measure %in% c(x, m)) %>% distinct()
+                             tmp <- tmp %>% pivot_wider(id_cols = c(sample, group), 
+                                                        values_from = "value", names_from = "measure")
+                             
+                             p <- ggplot(data = tmp, 
+                                         aes(x = get(x), y = get(m) )) + 
+                                 geom_point(pch = 21, size = 3, aes(fill=group)) + 
+                                 scale_fill_manual(values = c("after_FMT" = "#1f78b4", 
+                                                              "donor" = "#b2df8a",  
+                                                              "before_FMT" = "#a6cee3")) +
+                                 xlab(str_replace(x, "__", replacement = "\n")) + 
+                                 ylab(str_replace(m, "__", replacement = "\n")) + 
+                                 theme_minimal() + 
+                                 theme(legend.position = "none") 
+                             return(p)
+                             
+                         })
+    leg <- cowplot::get_legend(plots_corr[[1]] + theme(legend.position = "bottom"))
+    cowplot::plot_grid(plotlist = plots_corr,leg)
+    
+    
+}
+
+plot_SCENITH_measure_focus_scatter()
+```
 
 
 
