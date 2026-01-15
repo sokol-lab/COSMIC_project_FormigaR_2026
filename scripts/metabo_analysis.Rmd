@@ -34,21 +34,21 @@ names(colormap_group) <- c("donor", "before_FMT", "after_FMT")
 
 ```{r}
 
-scenith_dt <- read_tsv(file = "scenith_data.tsv", col_names = T, show_col_types = F)
+scenith_dt <- read_tsv(file = "../data/scenith_data.tsv", col_names = T, show_col_types = F)
 
-pairwise_FMT_dt <- read_tsv(file = "FMT_pairing.tsv", col_names = T, show_col_types = F)
+pairwise_FMT_dt <- read_tsv(file = "../data/FMT_pairing.tsv", col_names = T, show_col_types = F)
 pairwise_FMT_dt <- pairwise_FMT_dt %>%
     mutate(FMT_group = paste0("FMT_grp_", row_number())) %>% 
     pivot_longer(cols = c("donor", "before_FMT", "after_FMT"), values_to = "sample", names_to = "group") %>%
     mutate(bodysite = ifelse(data == "shotgun_metagenomics", "feces", "plasma"))
 
-metabolomic_dt <- read_tsv(file = "all_metabo_dt.tsv", col_names = T, show_col_types = F) %>% 
+metabolomic_dt <- read_tsv(file = "../data/all_metabo_dt.tsv", col_names = T, show_col_types = F) %>% 
     left_join(pairwise_FMT_dt %>% distinct(group, sample)) %>% as.data.frame()
 
-metabolomic_dt_limits <- read_tsv(file = "all_metabo_dt_limit_detection.tsv", col_names = T, show_col_types = F) %>% 
+metabolomic_dt_limits <- read_tsv(file = "../data/all_metabo_dt_limit_detection.tsv", col_names = T, show_col_types = F) %>% 
     left_join(pairwise_FMT_dt %>% distinct(group, sample)) %>% as.data.frame()
 
-metabo_type <- read_tsv(file = "metabolites_types.tsv", col_names = T, show_col_types = F)
+metabo_type <- read_tsv(file = "../data/metabolites_types.tsv", col_names = T, show_col_types = F)
 
 ```
 

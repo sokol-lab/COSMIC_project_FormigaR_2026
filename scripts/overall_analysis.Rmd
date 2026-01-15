@@ -48,7 +48,6 @@ Measure the shift (pre post FMT) compared to the mean of Healthy donors
 
 Then look for engraftment of species (% of abundance of species coming from donor)
 
-
 Build matrix of significant measurements (bacteria, metabolites, SCENITH ) to look for correlation
 
 ```{r}
@@ -165,7 +164,12 @@ ggplot(data = plot_dt,
 ```
 
 
+Save results
 ```{r}
+
+write_lines(x = res_microbiota %>% filter(comparison == "pre_post_FMT", Padj < 0.05) %>% pull(spc), 
+            file = "../data/spc_diff_pre_post_FMT.txt")
+
 all_measure_type <- all_measure_type %>% rbind(tibble(measure = unique(plot_dt$spc), type = "species_relab"))
 all_measure_mat <- cbind(all_measure_mat, t(mpa4_table_spc[unique(plot_dt$spc), ]))
 
@@ -418,11 +422,12 @@ res_metabo <- lapply(names(comparisons_grp_rm),
 
 
 median_conc <-  left_join(pairwise_FMT_dt %>% select(-data, -FMT_group), metabolomic_dt_limits) %>% distinct()
-median_conc <- median_conc %>% pivot_longer(-c(name, sample, bodysite), names_to = "metabolites", values_to = "cocentration")
-median_conc <- median_conc %>% group_by(name, bodysite, metabolites) %>% summarise(median_conc = median(cocentration)) 
+median_conc <- median_conc %>% pivot_longer(-c(name, sample, bodysite), names_to = "metabolites", values_to = "concentration")
+median_conc <- median_conc %>% group_by(name, bodysite, metabolites) %>% summarise(median_conc = median(concentration)) 
     
 
-
+write_tsv(x = res_metabo %>% filter(comparison == "pre_post_FMT", Padj < 0.05) %>% select(metabolites, bodysite), 
+            file = "../data/metabo_diff_pre_post_FMT.tsv", col_names = T)
 
 ```
 
@@ -519,14 +524,12 @@ plasma_log_data <- data.frame(plasma_log_data %>% select(-PARENT_SAMPLE_NAME), r
 
 ```
 
-
-
 Test
 
 ```{r}
 comparisons_grp_rm2 <- c("pre_post_FMT" = "Healthy", "pre_donor" = "Post_FMT", "post_donor" = "Pre_FMT")
 
-res_metabo_unterg <- lapply(names(comparisons_grp_rm2), 
+res_metabo_untarg <- lapply(names(comparisons_grp_rm2), 
                          function(comparison){
                              print(comparison)
                              lapply(c("feces", "plasma"), function(SITE){
@@ -549,8 +552,6 @@ res_metabo_unterg <- lapply(names(comparisons_grp_rm2),
                                      left_join(fmt_grp_dt %>% select(sample_id = sample, FMT_group)) %>%
                                      group_by(FMT_group) %>% dplyr::filter(n() == 2) %>% ungroup()
                                  metabo_measure <- metabo_measure[sample_dt$PARENT_SAMPLE_NAME, ] %>% na.omit()
-                                 
-                                 
                                  
                                  res_test <- lapply(colnames(metabo_measure), function(x){
                                      #print(x)
@@ -578,6 +579,8 @@ res_metabo_unterg <- lapply(names(comparisons_grp_rm2),
                          }) %>% do.call(., what = rbind)
 
 
+write_tsv(x = res_metabo_untarg %>% filter(comparison == "pre_post_FMT", Padj < 0.05) %>% select(metabolites, CHEMICAL_NAME, bodysite), 
+            file = "../data/metabo_untarg_diff_pre_post_FMT.tsv", col_names = T)
 
 ```
 
@@ -787,6 +790,62 @@ write_tsv(all_measure_type, file = "../data/all_signif_measure_type.tsv", col_na
 
 
 
+
+### Focus on proline derivative level
+
+```{r}
+
+aa_list <- c("histidine", "isoleucine","leucine","lysine","methionine",
+             "phenylalanine","threonine","tryptophan","valine","arginine",
+             "cysteine","glutamine","tyrosine","glycine", "proline", "serine")
+
+
+
+SITE = "feces"
+
+if(SITE == "feces"){
+    metabo_measure <- feces_log_data                                         
+    sample_dt <- feces_sample_metadata
+    chem_md <- feces_chemical_metadata
+    fmt_grp_dt <- pairwise_FMT_dt %>% filter(data == "shotgun_metagenomics")
+} else {
+    metabo_measure <- plasma_log_data
+    sample_dt <- plasma_sample_metadata
+    chem_md <- plasma_chemical_metadata
+    fmt_grp_dt <- pairwise_FMT_dt %>% filter(data == "blood_scenith")
+}
+
+sample_dt <- sample_dt %>%  left_join(fmt_grp_dt %>% select(sample_id = sample, FMT_group, name)) 
+metabo_measure <- metabo_measure[sample_dt$PARENT_SAMPLE_NAME, ] %>% na.omit()
+
+#TARGET_ID <- chem_md %>% filter(CHEMICAL_NAME %in% c("2-piperidinone", "N-methylproline", "proline")) %>% pull(CHEM_ID)
+TARGET_ID <- chem_md %>% filter(CHEMICAL_NAME %in% aa_list) %>% pull(CHEM_ID)
+
+tmp <- metabo_measure[, paste0("X", TARGET_ID)]
+# colnames(tmp) <-  chem_md %>% filter(CHEMICAL_NAME %in% c("2-piperidinone", "N-methylproline", "proline")) %>% pull(CHEMICAL_NAME)
+colnames(tmp) <-  chem_md %>% filter(CHEMICAL_NAME %in% aa_list) %>% pull(CHEMICAL_NAME)
+tmp$PARENT_SAMPLE_NAME <- rownames(tmp)
+
+
+plot_dt <- tmp %>% left_join(sample_dt %>% select(PARENT_SAMPLE_NAME, name)) %>% na.omit() %>%
+    pivot_longer(-c(PARENT_SAMPLE_NAME, name), values_to = "chem_concentration", names_to = "chem_name")
+
+plot_dt$name <- factor(plot_dt$name, levels = c("before_FMT",  "donor", "after_FMT"))
+
+ggplot(data = plot_dt,
+       aes(x = name, y = chem_concentration)) + 
+    geom_boxplot() + 
+    stat_pwc(tip.length = 0, p.adjust.method = "BH", p.adjust.by = "panel") +
+    geom_jitter(height = 0)  +
+    theme_bw() + ylab("Normalized concentration") + xlab("") +
+    facet_wrap(~chem_name, ncol = 8) +
+    ggtitle(SITE) +
+    theme(axis.text.x = element_text(angle = 90))
+
+
+```
+
+
 # SCENITH
 
 Pairwise test before after
@@ -907,6 +966,9 @@ build matrix with pairwise correlation of elements (metabo, spc, scenith)
 - species abundance
 - metabo in bodysite
 
+## Correlation (initial screening plan)
+
+Screen all pairwise correlation between all measures
 
 ```{r}
 all_measure_mat <- readRDS(file = "../data/all_measure_signif.rds")
@@ -935,8 +997,6 @@ corr_res <- lapply(combn(colnames(data_for_corr_test), m = 2, simplify = F),
 # corr_res$measure1 <- str_replace_all(corr_res$measure1, pattern = "/| ", ".")
 # corr_res$measure2 <- str_replace_all(corr_res$measure2, pattern = "/| ", ".")
 
-
-
 corr_res_type <- corr_res %>% 
     left_join(all_measure_type %>% select(measure1 = measure, type1 = type)) %>% 
     left_join(all_measure_type %>% select(measure2 = measure, type2 = type)) %>%
@@ -946,16 +1006,54 @@ corr_res_type <- corr_res %>%
 
 
 lol = corr_res_type %>% filter(Padj < 0.05)
-
 length(unique(c(lol$measure1, lol$measure2)))
+write_tsv(corr_res_type, file = "../data/correlation_results_all.tsv", col_names = T)
+
 
 write_tsv(lol, file = "../data/correlation_results_signif.tsv", col_names = T)
 
 ```
 
 
+## Second plan
+
+look first for diff pre post FMT metabo and corr with SCNENITH, 
+then look corr these metabo with taxa
+
+```{r}
+target_taxa <- read_lines(file = "../data/spc_diff_pre_post_FMT.txt")
+target_metabo <- read_tsv(file = "../data/metabo_diff_pre_post_FMT.tsv", col_names = T, show_col_types = F)
+target_metabo_untarg <- read_tsv(file = "../data/metabo_untarg_diff_pre_post_FMT.tsv", col_names = T, show_col_types = F)
+
+corr_res_type <- read_tsv(file = "../data/correlation_results_all.tsv", col_names = T, show_col_types = F)
+
+# filter first metabo x SCENITH : corr1 
+a <- target_metabo %>% rowwise() %>% mutate(tmp = paste0(bodysite, "__", metabolites)) %>% pull(tmp)
+b <- target_metabo_untarg %>% rowwise() %>% mutate(tmp = paste0(bodysite, "_untarg_", CHEMICAL_NAME)) %>% pull(tmp)
+corr_1 <- corr_res_type %>% filter(measure1 %in% c(a,b) | measure2 %in% c(a,b))
+corr_1 <- corr_1 %>% filter(type1 == "SCENITH_measure" | type2 == "SCENITH_measure")
+corr_1$Padj <- p.adjust(corr_1$p, method = "BH") # recompute correction pvalue
+
+corr1_signif <- corr_1 %>% filter(Padj < 0.1)
+
+metabo_target <- c(corr1_signif %>% filter(type1 != "SCENITH_measure") %>% pull(measure1),
+                   corr1_signif %>% filter(type2 != "SCENITH_measure") %>% pull(measure2))
+write_tsv(corr1_signif, file = "../data/correlation_1_signif01_metabo_scenith.tsv", col_names = T)
+
+# filter then metabo x taxa: corr2
+corr_2 <- corr_res_type %>% filter(measure1 %in% metabo_target | measure2 %in% metabo_target)
+corr_2 <- corr_2 %>% filter(measure1 %in% target_taxa | measure2 %in% target_taxa)
+corr_2$Padj <- p.adjust(corr_2$p, method = "BH") # recompute correction pvalue
+
+corr_2_signif <- corr_2 %>% filter(Padj < 0.1)
+write_tsv(corr_2_signif, file = "../data/correlation_2_signif01_metabo_taxa.tsv", col_names = T)
+
+lol = rbind(corr1_signif, corr_2_signif)
+
+```
 
 
+## Visualize as graph
 
 ```{r}
 library(igraph)
@@ -1017,7 +1115,6 @@ dev.off()
 
 
 ```
-
 
 
 ```{r}
@@ -1115,6 +1212,35 @@ plot_SCENITH_measure_focus_scatter <- function(x = "Mono.intermediate__Mitochond
 
 plot_SCENITH_measure_focus_scatter()
 ```
+
+
+
+
+## Correlation metabo x taxa in specific targets 
+
+```{r}
+
+
+target_metabo <- c("plasma_untarg_2-piperidinone", "feces_untarg_2-piperidinone",
+                   "feces_untarg_N-methylproline", "plasma_untarg_N-methylproline",
+                   "plasma_untarg_proline", "feces_untarg_proline")
+corr_res_type <- read_tsv(file = "../data/correlation_results_all.tsv", col_names = T, show_col_types = F)
+
+corr_1 <- corr_res_type %>% filter(measure1 %in% target_metabo | measure2 %in% target_metabo)
+corr_1 <- corr_1 %>% filter(type1 == "species_relab" | type2 == "species_relab")
+
+corr_1$Padj_taxa_metabo <- p.adjust(corr_1$p, method = "BH")
+
+corr_1 <- corr_1 %>% arrange(Padj_taxa_metabo)
+
+write_tsv(corr_1, file = "../data/correlation_metabo_taxa_proline_and_co.tsv", col_names = T)
+
+
+```
+
+
+
+
 
 
 

@@ -1,0 +1,192 @@
+metabolites	CHEMICAL_NAME	bodysite
+X93	alpha-ketoglutarate	feces
+X158	5,6-dihydrothymine	feces
+X171	hypoxanthine	feces
+X172	guanine	feces
+X211	2'-deoxyadenosine	feces
+X240	3-(4-hydroxyphenyl)lactate	feces
+X275	creatinine	feces
+X302	deoxycholate	feces
+X313	sphinganine	feces
+X342	glycocholate	feces
+X344	guanidinoacetate	feces
+X348	2'-deoxyguanosine	feces
+X405	lithocholate	feces
+X480	proline	feces
+X536	2'-deoxyuridine	feces
+X799	betaine	feces
+X872	thymidine	feces
+X880	adenine	feces
+X918	fucose	feces
+X925	heptanoate (7:0)	feces
+X926	caproate (6:0)	feces
+X1004	xanthine	feces
+X1090	bilirubin (Z,Z)	feces
+X1134	urate	feces
+X1215	N-acetylglucosaminylasparagine	feces
+X1221	creatine	feces
+X1254	glycerol	feces
+X1628	glycochenodeoxycholate	feces
+X2054	ethylmalonate	feces
+X100000010	3-phenylpropionate (hydrocinnamate)	feces
+X100000011	phenylacetate	feces
+X100000016	suberate (C8-DC)	feces
+X100000039	methionine sulfoxide	feces
+X100000097	4-hydroxybenzyl alcohol	feces
+X100000098	5-(2-hydroxyethyl)-4-methylthiazole	feces
+X100000115	diaminopimelate	feces
+X100000135	2'-deoxyinosine	feces
+X100000257	glucuronate	feces
+X100000283	N-acetylmuramate	feces
+X100000447	gentisate	feces
+X100000463	indolelactate	feces
+X100000656	1-stearoyl-GPI (18:0)	feces
+X100000706	alpha-hydroxyisocaproate	feces
+X100000772	mevalonolactone	feces
+X100000774	phenyllactate (PLA)	feces
+X100000776	palmitoylcarnitine (C16)	feces
+X100000787	N-acetylaspartate (NAA)	feces
+X100000846	erythritol	feces
+X100000849	2,3-dimethylsuccinate	feces
+X100000863	adipate (C6-DC)	feces
+X100000956	8-hydroxyoctanoate	feces
+X100001148	5-hydroxyhexanoate	feces
+X100001167	pro-hydroxy-pro	feces
+X100001211	sebacate (C10-DC)	feces
+X100001216	delta-tocopherol	feces
+X100001251	decanoylcarnitine (C10)	feces
+X100001263	1-palmitoyl-GPC (16:0)	feces
+X100001270	myristoylcarnitine (C14)	feces
+X100001271	1-stearoyl-GPC (18:0)	feces
+X100001315	p-cresol sulfate	feces
+X100001392	laurylcarnitine (C12)	feces
+X100001396	7-methylxanthine	feces
+X100001456	7-methylguanine	feces
+X100001501	oleoylcarnitine (C18:1)	feces
+X100001509	2-methylbutyrylcarnitine (C5)	feces
+X100001510	phenol sulfate	feces
+X100001541	2-hydroxy-3-methylvalerate	feces
+X100001562	2-palmitoyl-GPC (16:0)*	feces
+X100001586	gulonate*	feces
+X100001614	hexadecanedioate (C16-DC)	feces
+X100001617	undecanedioate (C11-DC)	feces
+X100001619	glycerophosphoglycerol	feces
+X100001707	isoleucylisoleucine	feces
+X100001721	N2-acetyllysine	feces
+X100001810	dimethylarginine (SDMA + ADMA)	feces
+X100001884	alanylvaline	feces
+X100001885	alanyltyrosine	feces
+X100001886	alanylthreonine	feces
+X100001956	N-methylproline	feces
+X100001979	alpha-tocotrienol	feces
+X100001988	5alpha-pregnan-3beta,20alpha-diol disulfate	feces
+X100001989	glycocholenate sulfate*	feces
+X100001999	21-hydroxypregnenolone disulfate	feces
+X100002185	indole-3-carboxylate	feces
+X100002241	7-methylurate	feces
+X100002293	phenylalanylphenylalanine	feces
+X100002344	(12 or 13)-methylmyristate (a15:0 or i15:0)	feces
+X100002398	piperidine	feces
+X100002744	8-hydroxyguanine	feces
+X100002773	solanidine	feces
+X100002910	1-methyl-5-imidazoleacetate	feces
+X100003070	enterolactone	feces
+X100003072	enterodiol	feces
+X100003109	2-oxindole-3-acetate	feces
+X100003151	linoleoylcarnitine (C18:2)*	feces
+X100003155	asparaginylisoleucine	feces
+X100003159	glutaminylisoleucine	feces
+X100003160	glutaminylleucine	feces
+X100003163	isoleucylalanine	feces
+X100003171	isoleucyllysine*	feces
+X100003179	leucylalanine	feces
+X100003187	leucyllysine*	feces
+X100003195	lysylisoleucine	feces
+X100003201	serylisoleucine	feces
+X100003207	tyrosylisoleucine	feces
+X100003258	2-O-methylascorbic acid	feces
+X100003260	carboxyethyl-GABA	feces
+X100003518	alanyllysine	feces
+X100003520	serylalanine	feces
+X100003532	threonylalanine	feces
+X100003556	lysylalanine	feces
+X100003559	lysylvaline	feces
+X100003562	lysylphenylalanine	feces
+X100003567	lysyllysine	feces
+X100003569	asparaginylvaline	feces
+X100003575	arginylalanine	feces
+X100003577	arginylvaline	feces
+X100003589	phenylalanylalanine	feces
+X100003593	phenylalanyltyrosine	feces
+X100003599	tyrosylvaline	feces
+X100003601	tyrosylphenylalanine	feces
+X100003604	tyrosyltyrosine	feces
+X100003636	valylalanine	feces
+X100003643	valyllysine	feces
+X100003649	valyltyrosine	feces
+X100003650	valylvaline	feces
+X100003678	prolylproline	feces
+X100003703	val-val-val	feces
+X100004216	pterin	feces
+X100004318	indolin-2-one	feces
+X100004644	1-methylhypoxanthine	feces
+X100005346	coprostanol	feces
+X100006435	N-acetylglucosamine/N-acetylgalactosamine	feces
+X100006614	adipoylcarnitine (C6-DC)	feces
+X100006641	glycochenodeoxycholate 3-sulfate	feces
+X100008934	2-hydroxylaurate	feces
+X100008939	isoleucylleucine/leucylisoleucine	feces
+X100009030	lactosyl-N-palmitoyl-sphingosine (d18:1/16:0)	feces
+X100009271	(S)-3-hydroxybutyrylcarnitine	feces
+X100009293	asparaginylalanine	feces
+X235	2-hydroxyphenylacetate	plasma
+X302	deoxycholate	plasma
+X344	guanidinoacetate	plasma
+X391	citrulline	plasma
+X480	proline	plasma
+X533	urea	plasma
+X1052	glycerate	plasma
+X100000014	hippurate	plasma
+X100000463	indolelactate	plasma
+X100000467	3-indoxyl sulfate	plasma
+X100000708	isovalerate (i5:0)	plasma
+X100000715	1-methylguanidine	plasma
+X100000840	tartronate (hydroxymalonate)	plasma
+X100000841	oxalate (ethanedioate)	plasma
+X100001022	threonate	plasma
+X100001055	isobutyrylcarnitine (C4)	plasma
+X100001064	glycolithocholate	plasma
+X100001083	indolepropionate	plasma
+X100001162	propionylcarnitine (C3)	plasma
+X100001258	glycylleucine	plasma
+X100001315	p-cresol sulfate	plasma
+X100001417	phenylacetylglutamine	plasma
+X100001550	homostachydrine*	plasma
+X100001605	catechol sulfate	plasma
+X100001657	glycolithocholate sulfate*	plasma
+X100001658	taurolithocholate 3-sulfate	plasma
+X100002122	3-hydroxyhippurate	plasma
+X100002488	isoursodeoxycholate	plasma
+X100002537	4-hydroxy-2-oxoglutaric acid	plasma
+X100002911	glycoursodeoxycholate	plasma
+X100003258	2-O-methylascorbic acid	plasma
+X100003397	trimethylamine N-oxide	plasma
+X100004111	4-methylcatechol sulfate	plasma
+X100004112	3-methyl catechol sulfate (1)	plasma
+X100004208	guaiacol sulfate	plasma
+X100004295	2-piperidinone	plasma
+X100004322	2-aminophenol sulfate	plasma
+X100006056	N-formylphenylalanine	plasma
+X100006098	3-hydroxypyridine sulfate	plasma
+X100006105	4-methylguaiacol sulfate	plasma
+X100006191	p-cresol glucuronide*	plasma
+X100006203	acesulfame	plasma
+X100006260	6-hydroxyindole sulfate	plasma
+X100006374	1,2,3-benzenetriol sulfate (2)	plasma
+X100006614	adipoylcarnitine (C6-DC)	plasma
+X100009329	ascorbic acid 2-sulfate	plasma
+X100020015	glucuronide of C10H18O2 (8)*	plasma
+X100020254	glycine conjugate of C10H14O2 (1)*	plasma
+X100020409	ascorbic acid 3-sulfate*	plasma
+X100020536	4-ethylcatechol sulfate	plasma
+X100020578	4-allylcatechol sulfate	plasma
