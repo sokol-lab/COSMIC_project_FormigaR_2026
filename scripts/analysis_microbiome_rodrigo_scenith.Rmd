@@ -32,8 +32,8 @@ names(colormap_group) <- c("HD", "before_FMT", "after_FMT")
 
 ```{r}
 
-mpa4_table <- read_tsv(file = "profile_mpa4_vJun23_FMT_Cdiff.tsv", col_names = T, show_col_types = F)
-scenith_dt <- read_tsv(file = "scenith_data.tsv", col_names = T, show_col_types = F)
+mpa4_table <- read_tsv(file = "../data/profile_mpa4_vJun23_FMT_Cdiff.tsv", col_names = T, show_col_types = F)
+scenith_dt <- read_tsv(file = "../data/scenith_data.tsv", col_names = T, show_col_types = F)
 md_mpa4_group <- tibble(sample = colnames(mpa4_table)[-1])
 md_mpa4_group <- md_mpa4_group %>% 
     left_join(scenith_dt %>% select(sample, group)) %>% 
@@ -47,7 +47,7 @@ mpa4_table_sgb <- mpa4_table[ grepl("t__SGB", rownames(mpa4_table) ), ]
 mpa4_table_spc <- mpa4_table[ grepl("s__[A-Za-z_]+$", rownames(mpa4_table) ), ]
 
 
-pairwise_FMT_dt <- read_tsv(file = "FMT_pairing.tsv", col_names = T, show_col_types = F)
+pairwise_FMT_dt <- read_tsv(file = "../data/FMT_pairing.tsv", col_names = T, show_col_types = F)
 pairwise_FMT_dt_shotgun <- pairwise_FMT_dt %>% filter(data == "shotgun_metagenomics") %>% 
     mutate(FMT_group = paste0("FMT_grp_", row_number())) %>% 
     pivot_longer(cols = c("donor", "before_FMT", "after_FMT"), values_to = "sample")
@@ -59,6 +59,7 @@ Change here to run the chunks below considering Speceis or SGB level
 
 ```{r}
 mpa4_table_used <- mpa4_table_spc
+
 ```
 
 
@@ -75,10 +76,11 @@ spec_richness_0_05 <- tibble(sample =  colnames(mpa4_table_used),
 ggplot(data = spec_richness_0_05, 
        aes(x = group, y = richness, color = group)) + 
     geom_boxplot(outlier.shape = NA) + 
-    geom_jitter(height = 0) + 
+    geom_jitter(height = 0, size = 2) + 
     theme_minimal() +
+    ggpubr::stat_pwc( tip.length = 0, p.adjust.method = "BH") + 
     scale_color_manual(values = colormap_group) +
-    xlab("") +
+    xlab("") + ylab("Species richness (relative abundance>=0.05%)") +
     theme(panel.grid.major.x = element_blank(), 
           legend.position = "none" )
 
@@ -120,16 +122,16 @@ p <- plot_dt %>%
                aes(fill = group)) +
     stat_ellipse(aes(color = group)) +
     theme_minimal() + 
-    scale_fill_viridis(discrete = T) + 
-    scale_color_viridis(discrete = T) +
+    scale_fill_manual(values = colormap_group) + 
+    scale_color_manual(values = colormap_group) +
     xlab(paste("PC1", round(100*(pco_dt$values[1] / sum(pco_dt$values)), digits = 2), "%")) + 
     ylab(paste("PC2", round(100*(pco_dt$values[2] / sum(pco_dt$values)), digits = 2), "%")) + 
-    coord_equal() +
+    #coord_equal() +
     theme(legend.position = "right", 
           legend.direction = "vertical") +
     labs(fill = "", color = "") + 
     # adjust title
-    ggtitle("Beta diversity", 
+    ggtitle("Beta diversity - Aitchison distance", 
             subtitle = paste0("adonis2 R2 = ", as.character(round(adonis_res$R2[1] * 100, 2)),
                               "%;P=", as.character(round(adonis_res$`Pr(>F)`[1], 4)), 
                               "\npermutest P=", as.character(round(res_permutest$tab["Groups", "Pr(>F)"], 4)) ))
@@ -159,7 +161,7 @@ for(grp in c("before_FMT", "HD", "after_FMT")){
     top_spc_grp[[grp]] <- top_spc
 }
 
-row_split_dt <- rep(paste0("top SGB in ", names(top_spc_grp)), each = TOP_N) 
+row_split_dt <- rep(paste0("top species in ", names(top_spc_grp)), each = TOP_N) 
 names(row_split_dt) <- unlist(top_spc_grp)
 
 ```
@@ -184,10 +186,12 @@ h <- Heatmap(matrix = relab_dt,
              width = unit(0.40, "cm") * ncol(relab_dt), 
              height = unit(0.40, "cm") * nrow(relab_dt),
              
-             row_split = factor(row_split_dt, levels = c("top SGB in before_FMT", "top SGB in HD", "top SGB in after_FMT")),
+             row_split = factor(row_split_dt, levels = c("top species in before_FMT", "top species in HD", "top species in after_FMT")),
              
              cluster_rows = T,
-             clustering_distance_rows = "pearson", clustering_method_rows = "ward.D2",
+             clustering_distance_rows = "spearman", clustering_method_rows = "ward.D2",
+             clustering_distance_columns  = "spearman", clustering_method_columns = "ward.D2",
+
              cluster_columns = T, 
              show_column_names = T, 
              column_split = factor(col_split_dt, levels = c("before_FMT", "HD", "after_FMT")), 
@@ -219,11 +223,11 @@ h <- Heatmap(matrix = relab_dt,
 h
 
 
-
 ```
 
 
-# Correlation
+
+# OLD Correlation
 
 
 ## Correlation microbiome-SCENITH
