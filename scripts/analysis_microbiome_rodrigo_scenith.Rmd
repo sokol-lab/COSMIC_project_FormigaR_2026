@@ -101,11 +101,7 @@ dt <- dt[rowSums(dt) != 0, ]
 dist_beta <- vegdist(t(dt), method = "aitchison", pseudocount = 1e-10)
 # Jaccard is also interesting
 #dist_beta <- vegdist(t(dt), method = "jaccard", pseudocount = 1e-10)
-```
 
-plot
-
-```{r}
 md <- md_mpa4_group %>% select(sample, group) %>% distinct()
 pco_dt <- ecodist::pco(dist_beta)
 plot_dt <- as.data.frame(pco_dt$vectors[, 1:2])

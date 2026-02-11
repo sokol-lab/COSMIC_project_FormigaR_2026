@@ -1,0 +1,369 @@
+---
+title: "proline focus"
+author: "Léonard Dubois"
+date: "2026-02-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(viridis)
+library(ggsignif)
+library(rstatix)
+library(ComplexHeatmap)
+library(RColorBrewer)
+library(circlize)
+
+rm(list = ls())
+gc()
+
+colormap_group <- c("#b2df8a", "#a6cee3", "#1f78b4") 
+names(colormap_group) <- c("HD", "before_FMT", "after_FMT") 
+
+pairwise_FMT_dt <- read_tsv(file = "../data/FMT_pairing.tsv", col_names = T, show_col_types = F)  %>% select(-comment) %>%
+    mutate(FMT_group = paste0("FMT_grp_", row_number())) %>% 
+    pivot_longer(cols = c("donor", "before_FMT", "after_FMT"), values_to = "sample")
+
+```
+
+
+# DATA - HUMANN 3 CPM
+
+```{r}
+
+get_filtered_genes_cpm <- function(list_nr_id, keep_spc_strat = FALSE){
+    a = lapply(list.files(path = "../humann3_gene_families/cpm_normed/", full.names = T), 
+               function(x){ 
+                   tmp <- read_tsv(x, col_names = T, show_col_types = F)
+                   tmp$nr90_id <- tmp %>% pull(`# Gene Family`) %>% str_extract(pattern = "UniRef90_[A-Z0-9]+")
+                   if (keep_spc_strat){
+                       tmp <- tmp %>% filter(nr90_id %in% list_nr_id) %>% filter(grepl(`# Gene Family`, pattern  ="\\|"))
+                   }else{
+                       tmp <- tmp %>% filter(`# Gene Family` %in% list_nr_id)
+                   }
+                   id = colnames(tmp)[2] %>% str_remove(pattern = "_Abundance-CPM") %>% str_remove(pattern = "CRSAFR-001-")
+                   if(grepl(id, pattern = "^[0-9]")){
+                       id <- paste0("HD_", id)
+                   }
+                   colnames(tmp) <- c("NR90", id)
+                   return(tmp[,c(1,2)])
+               })
+    a = a %>% purrr::reduce(., .f = full_join)
+    a[is.na(a)] <- 0
+    a <- a %>% pivot_longer(-NR90, names_to = "sample", values_to = "cpm") %>% left_join(pairwise_FMT_dt)
+
+    return(a)
+}
+
+```
+
+
+test quick visualization
+
+```{r}
+
+list_nr_file <- "../humann3_gene_families/misc_annot/nr90_list_proline_reductase.txt"
+list_nr <- read_tsv(file = list_nr_file, col_names = F, show_col_types = F)
+
+get_filtered_genes_cpm(list_nr %>% filter(grepl(X2, pattern = "Prd[ABC]")) %>% pull(X1)) %>%
+    group_by(sample, data, FMT_group, name) %>% 
+    summarise(tot_cpm = sum(cpm)) %>%
+    
+    ggplot(data = ., aes(x = name, y = tot_cpm)) + 
+    geom_boxplot(outlier.shape = NA) + 
+    geom_jitter(height = 0) + 
+    ggpubr::stat_pwc(tip.length = 0) +
+    theme_bw() + ggtitle("Proline reductase PrdABC - CPM")
+    
+
+
+a = get_filtered_genes_cpm(list_nr %>% filter(grepl(X2, pattern = "Prd[ABC]")) %>% pull(X1), keep_spc_strat = T) 
+a$taxa = lapply(a$NR90, function(x) str_split(x, pattern = "\\|", simplify = T)[2]) %>% unlist()
+a <- a %>% group_by(sample, data, FMT_group, name, taxa) %>% 
+    summarise(tot_cpm = sum(cpm))
+
+top_taxa <- a %>% group_by(taxa) %>% 
+    summarise(tot_cpm_taxa = sum(tot_cpm)) %>%
+    arrange(-tot_cpm_taxa) %>% head(n = 10) %>% pull(taxa)
+
+ggplot(data = a %>% filter(taxa %in% top_taxa),
+       aes(y = name, x = tot_cpm)) + 
+    geom_boxplot(outlier.shape = NA) + 
+    geom_jitter(width = 0) + 
+    facet_grid(vars(taxa)) +
+    #ggpubr::stat_pwc(tip.length = 0) +
+    theme_bw() + ggtitle("Proline reductase PrdABC - CPM") + 
+    theme(strip.text.y.right = element_text(angle = 0), 
+          strip.background = element_blank())
+
+```
+
+
+```{r}
+
+list_nr_file <- "../humann3_gene_families/misc_annot/nr90_list_proline_symporter.txt"
+list_nr <- read_tsv(file = list_nr_file, col_names = F, show_col_types = F)
+
+get_filtered_genes_cpm(list_nr %>% pull(X1)) %>%
+    group_by(sample, data, FMT_group, name) %>% 
+    summarise(tot_cpm = sum(cpm)) %>%
+    
+    ggplot(data = ., aes(x = name, y = tot_cpm)) + 
+    geom_boxplot(outlier.shape = NA) + 
+    geom_jitter(height = 0) + 
+    ggpubr::stat_pwc(tip.length = 0) +
+    theme_bw() + ggtitle("Sodium/Proline symporter - CPM")
+    
+
+# by taxa
+a = get_filtered_genes_cpm(list_nr %>% pull(X1), keep_spc_strat = T) 
+a$taxa = lapply(a$NR90, function(x) str_split(x, pattern = "\\|", simplify = T)[2]) %>% unlist()
+a <- a %>% group_by(sample, data, FMT_group, name, taxa) %>% 
+    summarise(tot_cpm = sum(cpm))
+
+top_taxa <- a %>% group_by(taxa) %>% 
+    summarise(tot_cpm_taxa = sum(tot_cpm)) %>%
+    arrange(-tot_cpm_taxa) %>% head(n = 10) %>% pull(taxa)
+
+ggplot(data = a %>% filter(taxa %in% top_taxa),
+       aes(y = name, x = tot_cpm)) + 
+    geom_boxplot(outlier.shape = NA) + 
+    geom_jitter(width = 0) + 
+    facet_grid(vars(taxa)) +
+    #ggpubr::stat_pwc(tip.length = 0) +
+    theme_bw() + ggtitle("Sodium/Proline symporter - CPM") + 
+    theme(strip.text.y.right = element_text(angle = 0), 
+          strip.background = element_blank())
+
+```
+
+
+
+not yielding much results
+
+```{r}
+
+list_nr_file <- "../humann3_gene_families/misc_annot/nr90_list_aminovalera.txt"
+list_nr <- read_tsv(file = list_nr_file, col_names = F, show_col_types = F)
+
+# nothing, too few proteins
+#list_nr %>% filter(X2 == "Delta-aminovaleramide aminohydrolase")
+
+get_filtered_genes_cpm(list_nr %>% filter(grepl(X2, pattern = "aminotransferase")) %>% pull(X1)) %>%
+    group_by(sample, data, FMT_group, name) %>% 
+    summarise(tot_cpm = sum(cpm)) %>%
+    
+    ggplot(data = ., aes(x = name, y = tot_cpm)) + 
+    geom_boxplot(outlier.shape = NA) + 
+    geom_jitter(height = 0) + 
+    ggpubr::stat_pwc(tip.length = 0) +
+    theme_bw() + ggtitle("Delta-aminovaleramide aminotransferase - CPM")
+    
+```
+
+
+
+
+# TODO : correlation enzyme and proline in untarg metabo value
+
+
+
+
+# Untargeted metabo of proline and derivatives
+
+```{r}
+feces_sample_metadata <- readxl::read_xlsx(path = "../RAW_metabo_untargeted/HSAE-01-24MD+ DATA TABLES (HUMAN FECES).XLSX", sheet = 3) %>% filter(!is.na(GROUP_ID))
+feces_chemical_metadata <- readxl::read_xlsx(path = "../RAW_metabo_untargeted/HSAE-01-24MD+ DATA TABLES (HUMAN FECES).XLSX", sheet = 2)
+feces_log_data <- readxl::read_xlsx(path = "../RAW_metabo_untargeted/HSAE-01-24MD+ DATA TABLES (HUMAN FECES).XLSX", sheet = 7)
+feces_log_data <- data.frame(feces_log_data %>% select(-PARENT_SAMPLE_NAME), row.names = feces_log_data$PARENT_SAMPLE_NAME)
+
+# Plasma data
+plasma_sample_metadata <- readxl::read_xlsx(path = "../RAW_metabo_untargeted/HSAE-01-24MD+ DATA TABLES (HUMAN PLASMA).XLSX", sheet = 3) %>% filter(!is.na(GROUP_ID))
+plasma_chemical_metadata <- readxl::read_xlsx(path = "../RAW_metabo_untargeted/HSAE-01-24MD+ DATA TABLES (HUMAN PLASMA).XLSX", sheet = 2)
+plasma_log_data <- readxl::read_xlsx(path = "../RAW_metabo_untargeted/HSAE-01-24MD+ DATA TABLES (HUMAN PLASMA).XLSX", sheet = 7)
+plasma_log_data <- data.frame(plasma_log_data %>% select(-PARENT_SAMPLE_NAME), row.names = plasma_log_data$PARENT_SAMPLE_NAME)
+```
+
+
+```{r}
+
+proline_derivatives_list <- c("proline", "N-methylproline", "5-aminovalerate", "2-piperidinone")
+
+plot_dt <- lapply(c("feces", "plasma"), function(SITE){
+    if(SITE == "feces"){
+        metabo_measure <- feces_log_data                                         
+        sample_dt <- feces_sample_metadata
+        chem_md <- feces_chemical_metadata
+        fmt_grp_dt <- pairwise_FMT_dt %>% filter(data == "shotgun_metagenomics")
+    } else {
+        metabo_measure <- plasma_log_data
+        sample_dt <- plasma_sample_metadata
+        chem_md <- plasma_chemical_metadata
+        fmt_grp_dt <- pairwise_FMT_dt %>% filter(data == "blood_scenith")
+    }
+    
+    sample_dt <- sample_dt %>%  left_join(fmt_grp_dt %>% select(sample_id = sample, FMT_group, name)) 
+    metabo_measure <- metabo_measure[sample_dt$PARENT_SAMPLE_NAME, ] %>% na.omit()
+    TARGET_ID <- chem_md %>% filter(CHEMICAL_NAME %in% proline_derivatives_list) %>% pull(CHEM_ID)
+    tmp <- metabo_measure[, paste0("X", TARGET_ID)]
+    colnames(tmp) <-  chem_md %>% filter(CHEMICAL_NAME %in% proline_derivatives_list) %>% pull(CHEMICAL_NAME)
+    tmp$PARENT_SAMPLE_NAME <- rownames(tmp)
+    plot_dt <- tmp %>% left_join(sample_dt %>% select(PARENT_SAMPLE_NAME, name)) %>% na.omit() %>%
+        pivot_longer(-c(PARENT_SAMPLE_NAME, name), values_to = "chem_concentration", names_to = "chem_name")
+    plot_dt$bodysite = SITE
+    return(plot_dt)
+}) %>% do.call(., what = rbind)
+
+plot_dt$name <- factor(plot_dt$name, levels = c("before_FMT",  "donor", "after_FMT"))
+
+ggplot(data = plot_dt,
+       aes(x = name, y = chem_concentration)) + 
+    geom_boxplot(outlier.shape = NA) + 
+    ggpubr::stat_pwc(tip.length = 0, p.adjust.method = "BH", p.adjust.by = "panel") +
+    geom_jitter(height = 0, width = 0.3)  +
+    theme_bw() + ylab("Normalized concentration") + xlab("") +
+    facet_grid(cols = vars(chem_name), rows = vars(bodysite), scales = "free") +
+    theme(axis.text.x = element_text(angle = 90))
+
+ 
+```
+
+
+
+
+
+# network of correlation  - Proline and derivatives
+
+
+```{r}
+library(igraph)
+library(viridis)
+
+pairwise_corr_dt <- read_tsv(file = "../data/correlation_results_all.tsv", col_names = T, show_col_types = F) 
+proline_corr <- pairwise_corr_dt %>% filter(grepl(measure1, pattern = "proline") | grepl(measure2, pattern = "proline") )
+# OR
+target_metabo <- c("plasma_untarg_2-piperidinone", "feces_untarg_2-piperidinone",
+                   "feces_untarg_5-aminovalerate",
+                   "feces_untarg_N-methylproline", "plasma_untarg_N-methylproline",
+                   "plasma_untarg_proline", "feces_untarg_proline")
+proline_corr <- pairwise_corr_dt %>% filter(measure1 %in% target_metabo | measure2 %in% target_metabo )
+
+proline_corr$Padj_proline_focus <- p.adjust(proline_corr$p, method = "BH")
+proline_corr <- proline_corr %>% filter(Padj_proline_focus < 0.1)
+
+
+dt <- proline_corr
+links <- data.frame(source=dt$measure1,
+                    target=dt$measure2,
+                    importance=dt$rho )
+nodes <- data.frame(rbind(dt %>% select(name = measure1, type = type1), 
+                          dt %>% select(name = measure2, type = type2)) %>% 
+                        distinct())
+g <- graph_from_data_frame(d = links, vertices = nodes , directed = F)
+#g <- graph_from_data_frame(d = lol, directed = F)
+coul  <- viridis(length(unique(nodes$type))) 
+my_color <- coul[as.numeric(as.factor(V(g)$type))]
+col_edge <- ifelse(E(g)$importance > 0, "#2c7bb6", "#d7191c")
+ 
+# Make the plot
+plot(g, 
+     vertex.color= my_color,
+     edge.color  = col_edge,
+     vertex.size = 5,
+     vertex.label.color="black", 
+     vertex.label.cex=0.8, 
+     layout=layout_with_fr)
+
+
+```
+
+
+
+
+# Maaslin 3 models: proline and derivatives according to species relab or presence
+
+prepare data
+
+```{r}
+library(maaslin3)
+
+# bacterial taxa 
+mpa4_table <- read_tsv(file = "../data/profile_mpa4_vJun23_FMT_Cdiff.tsv", col_names = T, show_col_types = F)
+rname <- mpa4_table$clade
+mpa4_table <- as.matrix(mpa4_table %>% select(-clade))
+rownames(mpa4_table) <- rname
+mpa4_table_sgb <- mpa4_table[ grepl("t__SGB", rownames(mpa4_table) ), ]
+rownames(mpa4_table_sgb) <- str_remove(string = rownames(mpa4_table_sgb), ".*s__")
+
+
+# metabolites
+proline_derivatives_list <- c("2-piperidinone", "5-aminovalerate", "N-methylproline", "proline")
+metabo_dt <- lapply(c("feces", "plasma"), function(SITE){
+    if(SITE == "feces"){
+        metabo_measure <- feces_log_data                                         
+        sample_dt <- feces_sample_metadata
+        chem_md <- feces_chemical_metadata
+        fmt_grp_dt <- pairwise_FMT_dt %>% filter(data == "shotgun_metagenomics")
+    } else {
+        metabo_measure <- plasma_log_data
+        sample_dt <- plasma_sample_metadata
+        chem_md <- plasma_chemical_metadata
+        fmt_grp_dt <- pairwise_FMT_dt %>% filter(data == "blood_scenith")
+    }
+    
+    sample_dt <- sample_dt %>%  left_join(fmt_grp_dt %>% select(sample_id = sample, FMT_group, name)) 
+    metabo_measure <- metabo_measure[sample_dt$PARENT_SAMPLE_NAME, ] %>% na.omit()
+    TARGET_ID <- chem_md %>% filter(CHEMICAL_NAME %in% proline_derivatives_list) %>% pull(CHEM_ID)
+    tmp <- metabo_measure[, paste0("X", TARGET_ID)]
+    colnames(tmp) <-  chem_md %>% filter(CHEMICAL_NAME %in% proline_derivatives_list) %>% pull(CHEMICAL_NAME)
+    tmp$PARENT_SAMPLE_NAME <- rownames(tmp)
+    dt <- tmp %>% left_join(sample_dt %>% select(PARENT_SAMPLE_NAME, name)) %>% na.omit() %>%
+        pivot_longer(-c(PARENT_SAMPLE_NAME, name), values_to = "chem_concentration", names_to = "chem_name")
+    dt$bodysite = SITE
+    return(dt)
+}) %>% do.call(., what = rbind)
+
+mapping_names_untarg_plasma <- plasma_sample_metadata$sample_id
+names(mapping_names_untarg_plasma) <- plasma_sample_metadata$PARENT_SAMPLE_NAME
+mapping_names_untarg_feces <- feces_sample_metadata$sample_id
+names(mapping_names_untarg_feces) <- feces_sample_metadata$PARENT_SAMPLE_NAME
+full_map <- c(mapping_names_untarg_feces, mapping_names_untarg_plasma)
+
+metabo_dt <- metabo_dt %>% 
+    left_join(tibble(PARENT_SAMPLE_NAME = names(full_map), sampleID = full_map)) %>%
+    distinct()
+
+
+mat_feces <- metabo_dt %>% filter(bodysite == "feces") %>%
+    select(chem_name, sampleID, chem_concentration, group = name ) %>% 
+    pivot_wider(id_cols = c(group, sampleID), 
+                names_from = chem_name, values_from = chem_concentration, values_fill = NA)
+mat_feces <- data.frame(mat_feces %>% select(-sampleID), row.names = mat_feces$sampleID)
+
+
+```
+
+
+run Maaslin3
+
+```{r}
+
+lapply(colnames(mat_feces), function(target){
+    if(target == "group") { return(NULL) }
+    resF <- maaslin3(input_data = mpa4_table_sgb, 
+                     input_metadata = mat_feces %>% filter(group != "before_FMT"), # remove before FMT as they have "no microbiome"
+                     min_prevalence = 0.2, 
+                     output = paste0("../maaslin3_results/maaslin3_res_feces_", target), 
+                     formula = paste0("~ ", target, "+ group(group)")) # group as fixed effect
+    
+})
+
+
+
+
+
+
+```
+
