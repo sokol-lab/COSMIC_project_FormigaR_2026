@@ -89,7 +89,9 @@ mpa_dt_light <- mpa4_table_spc[spc_keep , ]
 
 
 mean_relab <- lapply(rownames(mpa_dt_light), function(x){
-    tmp <- pairwise_FMT_dt %>% filter(data == "shotgun_metagenomics") %>% distinct(name, sample) %>% filter( sample %in% colnames(mpa_dt_light)) 
+    tmp <- pairwise_FMT_dt %>% filter(data == "shotgun_metagenomics") %>%
+        distinct(name, sample) %>%
+        filter( sample %in% colnames(mpa_dt_light)) 
     tmp$spc_abundance <- mpa_dt_light[x, tmp$sample]
     res <- tmp %>% group_by(name) %>% 
         summarise(med_relab = mean(spc_abundance)) %>%
@@ -146,7 +148,10 @@ tmp <- full_join(tmp, tmp2) %>% mutate(FMT_effect = paste(restored, type_restora
 #write_tsv(tmp, "../data/enrich_test_res_microbiome.tsv", col_names = T )
 
 
-plot_dt <- mean_relab %>% left_join(tmp %>% filter(FMT_effect != "NS")) %>% na.omit()
+plot_dt <- mean_relab %>% left_join(tmp %>% filter(FMT_effect != "NS")) %>% na.omit() %>% 
+    mutate(spc = str_replace(spc, pattern = "\\|t__", replacement =" ")) %>%
+    mutate(spc = str_replace(spc, pattern = "_", replacement =" "))
+
 ggplot(data = plot_dt, 
        aes(x = med_relab, y = reorder(spc, med_relab))) +
     geom_point(aes(shape = name, fill = name), size = 2) + 
@@ -161,21 +166,23 @@ ggplot(data = plot_dt,
                                            fill = "white"), 
           legend.position = "bottom", 
           axis.ticks.y = element_blank(), 
-          axis.text.y = element_text(face = "italic"))
-
+          axis.text.y = element_text(face = "italic")) + 
+    coord_equal(ratio = 0.2)
+ 
 
 #Amount of each enrichment
 tmp %>% group_by(FMT_effect) %>% summarise(nb = n()) %>% 
     mutate(FMT_effect = factor(FMT_effect, levels = names(colormap_enrich)[names(colormap_enrich) %in% FMT_effect])) %>%
      ggplot(data = .,
-            aes(fill = FMT_effect, y = nb, x = "FMT effect on species")) +
+            aes(fill = FMT_effect, y = nb, x = "FMT effect on SGB")) +
     geom_bar(stat = "identity", position = "fill", 
              col = "black") + 
-    geom_text(aes(label = nb), size = 3, hjust = 0.5, position = position_fill(vjust = 0.5)) +
+    geom_text(aes(label = nb), size = 4, hjust = 0.5, position = position_fill(vjust = 0.5)) +
     scale_fill_manual(values = colormap_enrich) + 
-    theme_minimal() + xlab("") + ylab("") +
+    theme_minimal() + xlab("") + ylab("Proportion of SGB") +
     theme(panel.grid.major.x = element_blank(),
-          legend.position = "bottom", legend.direction = "vertical")
+          legend.position = "bottom", legend.direction = "vertical") + 
+    coord_equal(ratio = 3)
 
 ```
 
@@ -281,21 +288,24 @@ ggplot(data = plot_dt %>% filter(FMT_effect != "NS"),
                                            fill = "white"), 
           legend.position = "bottom", 
           axis.ticks.y = element_blank(), 
-          axis.text.y = element_text(size = 7))
+          axis.text.y = element_text(size = 7)) +
+    coord_equal(ratio = 0.2)
 
 
 #Amount of each enrichment
 plot_dt %>% group_by(FMT_effect) %>% summarise(nb = n()) %>% 
     mutate(FMT_effect = factor(FMT_effect, levels = names(colormap_enrich)[names(colormap_enrich) %in% FMT_effect])) %>%
      ggplot(data = .,
-            aes(fill = FMT_effect, y = nb, x = "FMT effect on species")) +
+            aes(fill = FMT_effect, y = nb, x = "FMT effect on bacterial pathways")) +
     geom_bar(stat = "identity", position = "fill", 
              col = "black") + 
     geom_text(aes(label = nb), size = 3, hjust = 0.5, position = position_fill(vjust = 0.5)) +
     scale_fill_manual(values = colormap_enrich) + 
     theme_minimal() + xlab("") + ylab("") +
     theme(panel.grid.major.x = element_blank(),
-          legend.position = "bottom", legend.direction = "vertical")
+          legend.position = "right", legend.direction = "vertical") +
+        coord_equal(ratio = 3)
+
 
 
 ```
@@ -396,11 +406,16 @@ tmp2 <- res_metabo %>% filter(comparison == "post_donor") %>%
     select(metabolites, type_restoration)
 
     
-all_res <- full_join(tmp, tmp2) %>% mutate(FMT_effect = paste(restored, type_restoration)) %>% mutate(FMT_effect = ifelse(grepl(FMT_effect, pattern = "NS"), "NS", FMT_effect )) 
-plot_dt <- mean_conc %>% mutate(metabolites = str_replace_all(string = metabolites, pattern = "-| ", ".")) %>% left_join(all_res) %>% na.omit()
+all_res <- full_join(tmp, tmp2) %>% 
+    mutate(FMT_effect = paste(restored, type_restoration)) %>% 
+    mutate(FMT_effect = ifelse(grepl(FMT_effect, pattern = "NS"), "NS", FMT_effect )) 
+plot_dt <- mean_conc %>% mutate(metabolites = str_replace_all(string = metabolites, pattern = "-| ", ".")) %>% 
+    left_join(all_res) %>% na.omit() %>% 
+    left_join(metabo_type %>% mutate(metabolites = str_replace_all(metabolite, "( |-)", ".")))
 
-
-ggplot(data = plot_dt %>% filter(FMT_effect != "NS"), 
+plot_dt %>% filter(FMT_effect != "NS") %>% arrange(bodysite, type) %>%
+    mutate(metabolites = str_replace_all(string = metabolites, pattern = "\\.", " ")) %>%
+ggplot(data = ., 
        aes(x = mean_conc, y = reorder(metabolites, mean_conc))) +
     geom_point(aes(shape = name, fill = name), size = 2) + 
     scale_shape_manual(values = c("after_FMT" = 21, "donor" = 22,  "before_FMT" = 23)) +
@@ -413,7 +428,8 @@ ggplot(data = plot_dt %>% filter(FMT_effect != "NS"),
           strip.background = element_rect(linetype = "blank",
                                            fill = "white"), 
           legend.position = "bottom", 
-          axis.ticks.y = element_blank())
+          axis.ticks.y = element_blank()) + 
+    coord_equal(ratio = 0.2)
 
 
 #Amount of each enrichment by metabolite type
@@ -432,10 +448,12 @@ res %>% group_by(type, bodysite) %>% mutate(nb_type = n()) %>%
     theme_minimal() + xlab("") + ylab("") +
     facet_grid(rows = vars(bodysite)) +
     theme(panel.grid.major.x = element_blank(),
-          legend.position = "bottom", legend.direction = "vertical")
+          legend.position = "right", legend.direction = "vertical") + 
+    coord_equal(ratio = 3)
 
 
 ```
+
 
 
 ## Save data
@@ -454,7 +472,9 @@ a <- metabolomic_dt_limits %>% filter(bodysite == "feces") %>% select(-bodysite)
 rownames(a) <- a$sample
 a <- a[, unique(targ_metabo_shift %>% filter(type == "targeted_metabo__feces") %>% pull(metabolites))]
 colnames(a) <- paste0("targeted_metabo__feces__", colnames(a))
-all_measure_mat <- cbind(all_measure_mat, a)
+all_measure_mat = merge(all_measure_mat, a, by=0, all=TRUE ) 
+rownames(all_measure_mat) <- all_measure_mat$Row.names
+all_measure_mat <- all_measure_mat %>% select(-Row.names)
 
 
 
@@ -462,9 +482,11 @@ b <- metabolomic_dt_limits %>% filter(bodysite == "plasma") %>% select(-bodysite
 rownames(b) <- b$sample
 b <- b[, unique(targ_metabo_shift %>% filter(type == "targeted_metabo__plasma") %>% pull(metabolites))]
 colnames(b) <- paste0("targeted_metabo__plasma__", colnames(b))
-b[setdiff(rownames(all_measure_mat), rownames(b) ), ] <- NA
-all_measure_mat[setdiff(rownames(b), rownames(all_measure_mat)), ] <- NA
-all_measure_mat <- cbind(all_measure_mat, b)
+all_measure_mat = merge(all_measure_mat, b, by=0, all=TRUE ) 
+rownames(all_measure_mat) <- all_measure_mat$Row.names
+all_measure_mat <- all_measure_mat %>% select(-Row.names)
+
+
 
 write_lines(c(colnames(a), colnames(b)), file = "../data/FMT_affected_targeted_metabo.txt")
 
@@ -607,8 +629,8 @@ plasma_keep <- plasma_keep %>% pivot_longer(-sample_id, values_to = "untarg_meta
 plot_dt <- plasma_keep %>% group_by(bodysite, chem_name, GROUP_ID, FMT_effect) %>% 
     summarise(median_value = median(untarg_metabo_measure))
 
-
-ggplot(data = plot_dt , 
+plot_dt %>% mutate(chem_name = str_remove(string = chem_name, "plasma_untarg_")) %>% 
+ggplot(data = ., 
        aes(x = median_value, y = reorder(chem_name, median_value))) +
     geom_point(aes(shape = GROUP_ID, fill = GROUP_ID), size = 2) + 
     scale_shape_manual(values = c("Post_FMT" = 21, "Healthy" = 22,  "Pre_FMT" = 23)) +
@@ -621,7 +643,7 @@ ggplot(data = plot_dt ,
           strip.background = element_rect(linetype = "blank",
                                            fill = "white"), 
           legend.position = "bottom", 
-          axis.ticks.y = element_blank())
+          axis.ticks.y = element_blank()) + coord_equal(ratio = 0.2)
 
 
 ```
@@ -657,8 +679,8 @@ feces_keep <- feces_keep %>% pivot_longer(-sample_id, values_to = "untarg_metabo
 plot_dt <- feces_keep %>% group_by(bodysite, chem_name, GROUP_ID, FMT_effect) %>% 
     summarise(median_value = median(untarg_metabo_measure))
 
-
-ggplot(data = plot_dt, 
+plot_dt %>% mutate(chem_name = str_remove(string = chem_name, "feces_untarg_")) %>% 
+ggplot(data = ., 
        aes(x = median_value, y = reorder(chem_name, median_value))) +
     geom_point(aes(shape = GROUP_ID, fill = GROUP_ID), size = 2) + 
     scale_shape_manual(values = c("Post_FMT" = 21, "Healthy" = 22,  "Pre_FMT" = 23)) +
@@ -671,7 +693,7 @@ ggplot(data = plot_dt,
           strip.background = element_rect(linetype = "blank",
                                            fill = "white"), 
           legend.position = "bottom", 
-          axis.ticks.y = element_blank())
+          axis.ticks.y = element_blank()) + coord_equal(ratio = 0.5)
 
 ```
 
@@ -695,7 +717,8 @@ untarg_metabolites_shift %>% group_by(bodysite, SUPER_PATHWAY) %>% mutate(tot_nb
     facet_grid(rows =vars(bodysite)) +
     theme_minimal() + xlab("") + ylab("") +
     theme(panel.grid.major.x = element_blank(),
-          legend.position = "bottom", legend.direction = "vertical")
+          legend.position = "right", legend.direction = "vertical") + 
+    coord_equal(ratio = 3)
 
 ```
 
@@ -730,7 +753,10 @@ colnames(plasma_keep) <- mapp_chem[colnames(plasma_keep)]
 # merge with other data
 plasma_keep[setdiff(rownames(all_measure_mat), rownames(plasma_keep)), ] <- NA
 all_measure_mat[setdiff(rownames(plasma_keep), rownames(all_measure_mat)), ] <- NA
-all_measure_mat <- cbind(plasma_keep, data.frame(all_measure_mat))
+all_measure_mat = merge(all_measure_mat, plasma_keep, by=0, all=TRUE ) 
+rownames(all_measure_mat) <- all_measure_mat$Row.names
+all_measure_mat <- all_measure_mat %>% select(-Row.names)
+
 
 all_measure_type <- all_measure_type %>% rbind(tibble(measure = colnames(plasma_keep) , type = "plasma_untarg_metabo"))
 
@@ -753,8 +779,9 @@ names(mapp_chem) <- x$metabolites
 colnames(feces_keep) <- mapp_chem[colnames(feces_keep)]
 
 feces_keep[setdiff(rownames(all_measure_mat), rownames(feces_keep)), ] <- NA
-all_measure_mat <- cbind(all_measure_mat, feces_keep )
-
+all_measure_mat = merge(all_measure_mat, feces_keep, by=0, all=TRUE ) 
+rownames(all_measure_mat) <- all_measure_mat$Row.names
+all_measure_mat <- all_measure_mat %>% select(-Row.names)
 all_measure_type <- all_measure_type %>% rbind(tibble(measure = colnames(feces_keep), type = "feces_untarg_metabo"))
 
 
@@ -776,7 +803,7 @@ write_tsv(all_measure_type, file = "../data/all_signif_measure_type.tsv", col_na
 
 
 
-## Focus on proline derivative level
+## Focus on AA levels
 
 ```{r}
 
@@ -816,14 +843,17 @@ plot_dt <- tmp %>% left_join(sample_dt %>% select(PARENT_SAMPLE_NAME, name)) %>%
 plot_dt$name <- factor(plot_dt$name, levels = c("before_FMT",  "donor", "after_FMT"))
 
 ggplot(data = plot_dt,
-       aes(x = name, y = chem_concentration)) + 
+       aes(x = name, y = chem_concentration, color = name)) + 
     geom_boxplot() + 
-    ggpubr::stat_pwc(tip.length = 0, p.adjust.method = "BH", p.adjust.by = "panel") +
+    ggpubr::stat_pwc(tip.length = 0, p.adjust.method = "BH", p.adjust.by = "panel", hide.ns = T) +
     geom_jitter(height = 0)  +
     theme_bw() + ylab("Normalized concentration") + xlab("") +
+    scale_color_manual(values = colormap_group)  +
     facet_wrap(~chem_name, ncol = 8) +
-    ggtitle(SITE) +
-    theme(axis.text.x = element_text(angle = 90))
+    ggtitle(SITE) + 
+    theme(legend.position = "none",
+          axis.text.x = element_text(angle = 90),
+          strip.background = element_blank())
 
  
 ```
@@ -871,7 +901,13 @@ res_test_signif <- res_test_signif %>%
 
 cell_measure_signif <- res_test %>% filter(wilcox_Padj < 0.05) %>% pull(cell_measure)
 
-scenith_dt_signif <- test_dt %>% filter(cell_measure %in% cell_measure_signif) %>% 
+
+export_dt <- scenith_dt %>% 
+    pivot_longer(-c(type_measure, group, sample), names_to = "cell_type", values_to = "SCENITH_measure") %>% 
+    left_join(pairwise_FMT_dt %>% filter(data == "blood_scenith", name != "donor") %>% select(FMT_group, sample)) %>%
+    mutate(cell_measure = paste(cell_type, type_measure, sep="__"))
+
+scenith_dt_signif <- export_dt %>% filter(cell_measure %in% cell_measure_signif) %>% 
     select(cell_measure, SCENITH_measure, sample) %>% 
     pivot_wider(names_from = cell_measure, values_from = SCENITH_measure) 
 scenith_dt_signif <- data.frame(scenith_dt_signif %>% select(-sample), row.names = scenith_dt_signif$sample)
@@ -957,7 +993,7 @@ all_measure_type <- read_tsv(file = "../data/all_signif_measure_type.tsv", col_n
 
 ```{r warning=FALSE}
 
-sample_keep <- pairwise_FMT_dt %>% filter(name != "before_FMT") %>% pull(sample)
+sample_keep <- pairwise_FMT_dt %>% filter(name != "before_FMT") %>% pull(sample) %>% unique()
 data_for_corr_test <- all_measure_mat[sample_keep, all_measure_type %>% filter(type != "pathway_relab") %>% pull(measure) ]
 
 corr_res <- lapply(combn(colnames(data_for_corr_test), m = 2, simplify = F), 
@@ -977,9 +1013,10 @@ corr_res_type <- corr_res %>%
     mutate(Padj = p.adjust(p, method = "BH"))
 write_tsv(corr_res_type, file = "../data/correlation_results_all.tsv", col_names = T)
 
-write_tsv(corr_res_type %>% filter(Padj < 0.05), file = "../data/correlation_results_signif.tsv", col_names = T)
+#write_tsv(corr_res_type %>% filter(Padj < 0.05), file = "../data/correlation_results_signif.tsv", col_names = T)
 
 ```
+
 
 ## Second plan
 
@@ -998,14 +1035,14 @@ corr_1 <- corr_res_type %>% filter(measure1 %in% c(target_metabo, target_metabo_
 corr_1 <- corr_1 %>% filter(type1 == "SCENITH_measure" | type2 == "SCENITH_measure")
 # focus monocytes ?
 corr_1 <- corr_1 %>% filter(grepl(measure1, pattern = "Mono") | grepl(measure2, pattern = "Mono"))
-
 corr_1$Padj <- p.adjust(corr_1$p, method = "BH") # recompute correction pvalue
-
 write_tsv(corr_1, file = "../data/correlation_1_signif01_metabo_scenith.tsv", col_names = T)
 
+
+
 # keep only metabo shifting with FMT, having an impact on SCENITH
-metabo_target <- c(corr_1 %>% filter(Padj < 0.1, type1 != "SCENITH_measure") %>% pull(measure1),
-                   corr_1 %>% filter(Padj < 0.1, type2 != "SCENITH_measure") %>% pull(measure2))
+metabo_target <- c(corr_1 %>% filter(Padj < 0.05, type1 != "SCENITH_measure") %>% pull(measure1),
+                   corr_1 %>% filter(Padj < 0.05, type2 != "SCENITH_measure") %>% pull(measure2))
 # filter then metabo x taxa: corr2
 corr_2 <- corr_res_type %>% filter(measure1 %in% metabo_target | measure2 %in% metabo_target)
 corr_2 <- corr_2 %>% filter(measure1 %in% target_taxa | measure2 %in% target_taxa)
@@ -1016,6 +1053,121 @@ write_tsv(corr_2, file = "../data/correlation_2_signif01_metabo_taxa.tsv", col_n
 #lol = rbind(corr1_signif, corr_2_signif)
 
 ```
+
+
+## Third plan
+
+Corr Metabo x SCENITH with all data
+Then corr Metabo x taxa without the before FMT group
+
+```{r}
+all_measure_mat <- readRDS(file = "../data/all_measure_signif.rds")
+all_measure_type <- read_tsv(file = "../data/all_signif_measure_type.tsv", col_names = T, show_col_types = F)
+target_taxa <- read_lines(file = "../data/FMT_affected_species.txt")
+target_metabo <- read_lines(file = "../data/FMT_affected_targeted_metabo.txt")
+target_metabo_untarg <- read_lines(file = "../data/FMT_affected_untargeted_metabo.txt")
+
+
+sample_keep <- pairwise_FMT_dt %>% pull(sample) %>% unique()
+measure_keep <- all_measure_type %>% 
+#    filter(type == "SCENITH_measure" | measure %in% c(target_metabo, target_metabo_untarg)) %>%
+    filter(grepl(measure, pattern = "Mono") | measure %in% c(target_metabo, target_metabo_untarg)) %>%
+
+    pull(measure)
+data_for_corr_test <- all_measure_mat[sample_keep, measure_keep ]
+
+corr_res1 <- lapply(combn(colnames(data_for_corr_test), m = 2, simplify = F), 
+       function(x){
+           tmp_dt <- data_for_corr_test[, x] %>% na.omit()
+           res <- cor.test(tmp_dt[, 1], tmp_dt[, 2], method = "spearman")
+           return(tibble(measure1 = x[1], 
+                         measure2 = x[2], 
+                         rho = res$estimate, 
+                         p = res$p.value))
+       }) %>% do.call(., what = rbind)
+corr_res1_mono <- corr_res1 %>% 
+    left_join(all_measure_type %>% select(measure1 = measure, type1 = type)) %>% 
+    left_join(all_measure_type %>% select(measure2 = measure, type2 = type)) %>%
+    filter(grepl(measure1, pattern = "Mono") | grepl(measure2, pattern = "Mono")) %>%
+    filter(type1 != type2) %>%
+    mutate(Padj = p.adjust(p, method = "BH"))
+
+corr_res1_mono <- corr_res1_mono %>% filter(Padj <= 0.05)
+
+```
+
+
+
+
+```{r}
+sample_keep <- pairwise_FMT_dt %>%  filter(name != "before_FMT") %>% pull(sample) %>% unique()
+target_metabo_pro <- c("plasma_untarg_2-piperidinone", "feces_untarg_2-piperidinone",
+                   "feces_untarg_N-methylproline", "plasma_untarg_N-methylproline",
+                   "plasma_untarg_proline", "feces_untarg_proline", "feces_untarg_prolylhydroxyproline")
+measure_keep <- all_measure_type %>% filter(measure %in% target_taxa  | measure %in% target_metabo_pro) %>% pull(measure)
+#measure_keep <- all_measure_type %>% filter(measure %in% target_taxa  | measure %in% c(corr_res1$measure1)) %>% pull(measure)
+
+data_for_corr_test <- all_measure_mat[sample_keep, measure_keep ]
+
+corr_res2 <- lapply(combn(colnames(data_for_corr_test), m = 2, simplify = F), 
+       function(x){
+           tmp_dt <- data_for_corr_test[, x] %>% na.omit()
+           res <- cor.test(tmp_dt[, 1], tmp_dt[, 2], method = "spearman")
+           return(tibble(measure1 = x[1], 
+                         measure2 = x[2], 
+                         rho = res$estimate, 
+                         p = res$p.value))
+       }) %>% do.call(., what = rbind)
+corr_res2 <- corr_res2 %>% 
+    left_join(all_measure_type %>% select(measure1 = measure, type1 = type)) %>% 
+    left_join(all_measure_type %>% select(measure2 = measure, type2 = type)) %>%
+    filter(type1 == "species_relab" | type2 == "species_relab" ) %>%
+    filter(type1 != type2) %>%
+    mutate(Padj = p.adjust(p, method = "BH"))
+
+corr_res2 %>% filter(Padj <= 0.05)
+
+
+```
+
+
+Test taxa with presence associated with pro derivative 
+
+
+```{r}
+
+target_taxa <- read_lines(file = "../data/FMT_affected_species.txt")
+
+TARGET = "feces_untarg_N-methylproline"
+
+data_for_test <- all_measure_mat[ ,  c(TARGET, target_taxa ) ]
+
+res_taxa_proline <- lapply(target_taxa, function(taxa){
+    tmp_dt <- data_for_test[, c(taxa, TARGET)] %>% na.omit()
+    colnames(tmp_dt)[2] = "TARGET"
+    tmp_dt$sample <- rownames(tmp_dt)
+    tmp_dt <- tmp_dt %>% left_join(pairwise_FMT_dt %>% distinct(name, sample))
+    tmp_dt$taxa_presence <- ifelse(tmp_dt[,taxa] == 0, "absent", "present")
+    res_wilcox <- wilcox_test(data = tmp_dt, TARGET ~ taxa_presence)
+    res_wilcox_effsize <- wilcox_effsize(data = tmp_dt, TARGET ~ taxa_presence)
+    dt_corr <- tmp_dt %>% filter(taxa_presence == "present")
+    res_cor <- cor.test(dt_corr[, "TARGET"], dt_corr[,taxa], 
+                        method = "spearman")
+    
+    return(tibble(taxa = taxa, 
+                  wilcox_p = res_wilcox$p, 
+                  wilcox_effsize = res_wilcox_effsize$effsize, 
+                  rho = res_cor$estimate, 
+                  cor_p = res_cor$p.value))
+}) %>% do.call(., what = rbind) %>%
+    mutate(wilcox_Padj = p.adjust(wilcox_p, "BH"), 
+           cor_Padj = p.adjust(cor_p, method = "BH"))
+ 
+res_taxa_proline
+
+```
+
+
 
 
 ## Visualize heatmap correlation ALL METABO x SCENITH
@@ -1043,6 +1195,7 @@ dt_scenith_metabo[to_inverse, "type2"] <- tmp_switch
 dt_scenith_metabo$measure2 <- str_replace_all(dt_scenith_metabo$measure2, "__", " ")
 dt_scenith_metabo <- na.omit(dt_scenith_metabo) 
 
+
 # keep only measure with at least one corr
 measure_signif <- dt_scenith_metabo %>% filter(Padj < 0.05) %>% select(measure1, measure2)
 measure_signif <- unique(c(measure_signif$measure1, measure_signif$measure2))
@@ -1058,18 +1211,18 @@ names(type_measure_metabo) <- tmp$measure1
 
 corr_dt <- dt_scenith_metabo %>% 
     select(measure1, measure2, rho) %>% 
-    pivot_wider(names_from = measure1, values_from = rho) %>%
+    pivot_wider(names_from = measure2, values_from = rho) %>%
     as.data.frame()
-rownames(corr_dt) <- corr_dt$measure2
-corr_dt <- corr_dt %>% select(-measure2)
+rownames(corr_dt) <- corr_dt$measure1
+corr_dt <- corr_dt %>% select(-measure1)
 corr_dt[is.na(corr_dt)] <- 0
 
 pval_dt <- dt_scenith_metabo %>% 
     select(measure1, measure2, Padj) %>% 
-    pivot_wider(names_from = measure1, values_from = Padj) %>%
+    pivot_wider(names_from = measure2, values_from = Padj) %>%
     as.data.frame()
-rownames(pval_dt) <- pval_dt$measure2
-pval_dt <- pval_dt %>% select(-measure2)
+rownames(pval_dt) <- pval_dt$measure1
+pval_dt <- pval_dt %>% select(-measure1)
 
 
 col_fun_HM <- colorRamp2(c("blue", "white", "red"),
@@ -1078,27 +1231,29 @@ h <- Heatmap(matrix = corr_dt,
             col = col_fun_HM,
             na_col = "white",
                  
-            width = unit(0.35, "cm") * ncol(corr_dt), 
-            height = unit(0.35, "cm") * nrow(corr_dt),
+            width = unit(0.5, "cm") * ncol(corr_dt), 
+            height = unit(0.5, "cm") * nrow(corr_dt),
             
             name = "SCENITH x Metabolites",
             column_title_gp = gpar(fontsize = 12),
-            column_title_side = "top", 
+            column_names_rot = 45,
             cluster_rows = T, 
             show_row_dend = F,
             cluster_columns = T, 
             show_column_names = T,
-            show_row_names = T, row_title = NULL,
+            show_row_names = T, column_title = NULL,
+            row_title_side = "right", row_title_rot = 0,
+            row_labels = structure(names = rownames(corr_dt), str_remove(rownames(corr_dt), ".*_")),
             
             cluster_column_slices = F,
-            show_column_dend = F,
+            show_column_dend = F, 
             clustering_distance_rows = "spearman",
             clustering_distance_columns = "spearman",
             clustering_method_rows = "ward.D2",
             clustering_method_columns = "ward.D2",
             
-            row_split = type_measure_scenith, 
-            column_split = type_measure_metabo,
+            row_split = type_measure_metabo, 
+            column_split = type_measure_scenith,
             
             border = T,                
             column_gap = unit(2, "mm"), row_gap = unit(2, "mm"),
@@ -1113,11 +1268,11 @@ h <- Heatmap(matrix = corr_dt,
                 if(!is.na(pval_dt[i, j] )){
                     if(pval_dt[i, j] < 0.01){
                         color_star <- ifelse(abs(corr_dt[i, j]) > 0.6, "white", "black")
-                        grid.text("**", x, y -height/3, gp = gpar(fontsize = 12, col = color_star))
+                        grid.text("**", x, y -height/3, gp = gpar(fontsize = 14, col = color_star))
                     } else
                     if(pval_dt[i, j] < 0.05){
                         color_star <- ifelse(abs(corr_dt[i, j]) > 0.6, "white", "black")
-                        grid.text("*", x, y -height/3, gp = gpar(fontsize = 12, col = color_star))
+                        grid.text("*", x, y -height/3, gp = gpar(fontsize = 14, col = color_star))
                     }
                 }
             })
@@ -1129,6 +1284,8 @@ draw(h, heatmap_legend_side = "right", )
 ## Targeted set 1 SCENITH x METABO 
 
 ```{r}
+dt_scenith_metabo <- corr_res1_mono 
+
 dt_scenith_metabo <- read_tsv(file = "../data/correlation_1_signif01_metabo_scenith.tsv", col_names = T, show_col_types = F)
 dt_scenith_metabo$measure2 <- str_replace_all(dt_scenith_metabo$measure2, "__", " ")
 dt_scenith_metabo <- na.omit(dt_scenith_metabo) 
@@ -1254,17 +1411,20 @@ h <- Heatmap(matrix = corr_dt,
             col = col_fun_HM,
             na_col = "white",
                  
-            width = unit(0.25, "cm") * ncol(corr_dt), 
-            height = unit(0.25, "cm") * nrow(corr_dt),
+            width = unit(0.35, "cm") * ncol(corr_dt), 
+            height = unit(0.3, "cm") * nrow(corr_dt),
             
             name = "SCENITH x Metabolites",
             column_title_gp = gpar(fontsize = 12),
-            column_title_side = "top", 
+            column_title_side = "top", column_names_rot = 45,  
             cluster_rows = T, 
             show_row_dend = F,
             cluster_columns = T, 
             show_column_names = T,
-            show_row_names = T, row_title = NULL,
+            show_row_names = T, 
+            row_title_side = "right", row_title_rot = 0,
+            row_labels = structure(names = rownames(corr_dt), str_remove(rownames(corr_dt), ".*_")),
+
             
             cluster_column_slices = F,
             show_column_dend = F,
@@ -1468,14 +1628,13 @@ plot_SCENITH_measure_focus_scatter()
 ## Correlation metabo x taxa in specific targets 
 
 ```{r}
-
-
+target_taxa <- read_lines(file = "../data/FMT_affected_species.txt")
 target_metabo <- c("plasma_untarg_2-piperidinone", "feces_untarg_2-piperidinone",
                    "feces_untarg_N-methylproline", "plasma_untarg_N-methylproline",
-                   "plasma_untarg_proline", "feces_untarg_proline")
+                   "plasma_untarg_proline", "feces_untarg_proline", "feces_untarg_prolylhydroxyproline")
 corr_res_type <- read_tsv(file = "../data/correlation_results_all.tsv", col_names = T, show_col_types = F)
 
-corr_1 <- corr_res_type %>% filter(measure1 %in% target_metabo | measure2 %in% target_metabo)
+corr_1 <- corr_res_type %>% filter(measure1 %in% c(target_metabo, target_taxa), measure2 %in% c(target_metabo, target_taxa) )
 corr_1 <- corr_1 %>% filter(type1 == "species_relab" | type2 == "species_relab")
 
 corr_1$Padj_taxa_metabo <- p.adjust(corr_1$p, method = "BH")
@@ -1485,11 +1644,148 @@ corr_1 <- corr_1 %>% arrange(Padj_taxa_metabo)
 write_tsv(corr_1, file = "../data/correlation_metabo_taxa_proline_and_co.tsv", col_names = T)
 
 
+corr_1 %>% filter(Padj < 0.1) %>% arrange(measure1)
+
+```
+
+
+
+# Focused scatterplot of cherry-picked correlations
+
+
+```{r}
+all_measure_mat <- readRDS(file = "../data/all_measure_signif.rds")
+all_measure_type <- read_tsv(file = "../data/all_signif_measure_type.tsv", col_names = T, show_col_types = F)
+sample_keep <- pairwise_FMT_dt %>% pull(sample) %>% unique()
+
+
+plot_scatter_focus <- function(measure1 = "Mono.classical__Glucose.dependence", measure2 = "feces_untarg_proline"){
+    
+    tmp_dt <- all_measure_mat[, c(measure1, measure2)] %>% na.omit()
+    tmp_dt$sample <- rownames(tmp_dt)
+    tmp_dt <- tmp_dt %>% left_join(pairwise_FMT_dt %>% distinct(name, sample))
+    
+    ggplot(data = tmp_dt,
+           aes(x = .data[[measure1]], y = .data[[measure2]])) + 
+        ggpubr::stat_cor() + 
+        geom_point(aes( fill = name), pch = 21, size = 3) + 
+        scale_fill_manual(values = colormap_group) +
+        theme_bw() 
+}
+
+
+plot_scatter_focus()
+plot_scatter_focus(measure2 = "feces_untarg_N-methylproline" )
+plot_scatter_focus("feces_untarg_N-methylproline", "feces_untarg_proline" )
+
+# other misc
+plot_scatter_focus(measure1 = "Dorea_longicatena.t__SGB4581")
+plot_scatter_focus(measure1 = "Mono.intermediate__Glucose.dependence" )
+plot_scatter_focus(measure2 = "plasma_untarg_2-piperidinone" )
+plot_scatter_focus(measure2 = "plasma_untarg_proline")
+plot_scatter_focus("Mono.intermediate__Mitochondrial.dependence",  "targeted_metabo__plasma__GCDCA")
+
+
+
 ```
 
 
 
 
+# Proline derivative focus
 
+
+```{r}
+feces_sample_metadata <- readxl::read_xlsx(path = "../RAW_metabo_untargeted/HSAE-01-24MD+ DATA TABLES (HUMAN FECES).XLSX", sheet = 3) %>% filter(!is.na(GROUP_ID))
+feces_chemical_metadata <- readxl::read_xlsx(path = "../RAW_metabo_untargeted/HSAE-01-24MD+ DATA TABLES (HUMAN FECES).XLSX", sheet = 2)
+feces_log_data <- readxl::read_xlsx(path = "../RAW_metabo_untargeted/HSAE-01-24MD+ DATA TABLES (HUMAN FECES).XLSX", sheet = 7)
+feces_log_data <- data.frame(feces_log_data %>% select(-PARENT_SAMPLE_NAME), row.names = feces_log_data$PARENT_SAMPLE_NAME)
+
+# Plasma data
+plasma_sample_metadata <- readxl::read_xlsx(path = "../RAW_metabo_untargeted/HSAE-01-24MD+ DATA TABLES (HUMAN PLASMA).XLSX", sheet = 3) %>% filter(!is.na(GROUP_ID))
+plasma_chemical_metadata <- readxl::read_xlsx(path = "../RAW_metabo_untargeted/HSAE-01-24MD+ DATA TABLES (HUMAN PLASMA).XLSX", sheet = 2)
+plasma_log_data <- readxl::read_xlsx(path = "../RAW_metabo_untargeted/HSAE-01-24MD+ DATA TABLES (HUMAN PLASMA).XLSX", sheet = 7)
+plasma_log_data <- data.frame(plasma_log_data %>% select(-PARENT_SAMPLE_NAME), row.names = plasma_log_data$PARENT_SAMPLE_NAME)
+```
+
+
+```{r}
+# extend to 
+
+#proline_derivatives_list <- c("proline", "N-methylproline", "5-aminovalerate", "2-piperidinone", "prolylhydroxyproline")
+
+plot_dt <- lapply(c("feces", "plasma"), function(SITE){
+    print(SITE)
+    if(SITE == "feces"){
+        metabo_measure <- feces_log_data                                         
+        sample_dt <- feces_sample_metadata
+        chem_md <- feces_chemical_metadata
+        fmt_grp_dt <- pairwise_FMT_dt %>% filter(data == "shotgun_metagenomics")
+    } else {
+        metabo_measure <- plasma_log_data
+        sample_dt <- plasma_sample_metadata
+        chem_md <- plasma_chemical_metadata
+        fmt_grp_dt <- pairwise_FMT_dt %>% filter(data == "blood_scenith")
+    }
+    TARGET_ID <- chem_md$CHEM_ID[grepl(chem_md$CHEMICAL_NAME, pattern ="prolin")]
+    TARGET_ID2 <- chem_md$CHEM_ID[chem_md$CHEMICAL_NAME %in% c("5-aminovalerate", "2-piperidinone")]
+    TARGET_ID <- c(TARGET_ID, TARGET_ID2)
+    
+    sample_dt <- sample_dt %>%  left_join(fmt_grp_dt %>% select(sample_id = sample, FMT_group, name)) 
+    metabo_measure <- metabo_measure[sample_dt$PARENT_SAMPLE_NAME, ] %>% na.omit()
+    TARGET_ID <- TARGET_ID[paste0("X", TARGET_ID) %in% colnames(metabo_measure)]
+    tmp <- metabo_measure[, paste0("X", TARGET_ID)]
+    colnames(tmp) <-  chem_md %>% filter(CHEM_ID %in% TARGET_ID) %>% pull(CHEMICAL_NAME)
+    tmp$PARENT_SAMPLE_NAME <- rownames(tmp)
+    plot_dt <- tmp %>% left_join(sample_dt %>% select(PARENT_SAMPLE_NAME, name, sample_id)) %>% na.omit() %>%
+        pivot_longer(-c(PARENT_SAMPLE_NAME, name, sample_id), values_to = "chem_concentration", names_to = "chem_name")
+    plot_dt$bodysite = SITE
+    return(plot_dt)
+}) %>% do.call(., what = rbind)
+
+
+plot_dt$name <- factor(plot_dt$name, levels = c("before_FMT",  "donor", "after_FMT"))
+
+ggplot(data = plot_dt,
+       aes(x = name, y = chem_concentration)) + 
+    geom_boxplot(outlier.shape = NA) + 
+    ggpubr::stat_pwc(tip.length = 0, p.adjust.method = "BH", p.adjust.by = "panel", hide.ns = T) +
+    geom_jitter(height = 0, width = 0.3)  +
+    theme_bw() + ylab("Normalized concentration") + xlab("") +
+    facet_grid(cols = vars(chem_name), rows = vars(bodysite), scales = "free_y") +
+    theme(axis.text.x = element_text(angle = 90))
+
+# feces only
+ggplot(data = plot_dt %>% filter(bodysite == "feces"),
+       aes(x = name, y = chem_concentration, colour = name)) + 
+    geom_boxplot(outlier.shape = NA) + 
+    ggpubr::stat_pwc(tip.length = 0, p.adjust.method = "BH", p.adjust.by = "panel", hide.ns = T) +
+    geom_jitter(height = 0, width = 0.3)  +
+    theme_bw() + ylab("Normalized concentration") + xlab("") +
+    scale_color_manual(values = colormap_group) + 
+    facet_wrap(~chem_name, nrow = 2, scales = "free_y") +
+    theme(axis.text.x = element_text(angle = 90), 
+          strip.background = element_blank(), 
+          panel.grid.major.x = element_blank(), 
+          legend.position = "none")
+
+
+
+# test high dorea
+high_dorea_samples <- read_lines(file = "../data/dorea_high_samples.txt")
+plot_dt <- plot_dt %>% mutate(has_high_dorea = ifelse(sample_id %in% high_dorea_samples, "yes", "no"))
+
+ggplot(data = plot_dt %>% filter(bodysite == "feces"),
+       aes(x = name, y = chem_concentration)) + 
+    geom_boxplot(outlier.shape = NA) + 
+    ggpubr::stat_pwc(tip.length = 0, p.adjust.method = "BH", p.adjust.by = "panel", hide.ns = T) +
+    geom_jitter(aes(fill = has_high_dorea),
+                height = 0, width = 0.3 , pch = 21, size = 3 )  +
+    theme_bw() + ylab("Normalized concentration") + xlab("") +
+    facet_wrap(~chem_name, nrow = 3, scales = "free_y") +
+    theme(axis.text.x = element_text(angle = 90))
+
+
+```
 
 

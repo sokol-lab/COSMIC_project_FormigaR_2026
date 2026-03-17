@@ -58,7 +58,8 @@ md_mpa4_group <- md_mpa4_group %>% left_join(pairwise_FMT_dt_shotgun %>% select(
 Change here to run the chunks below considering Speceis or SGB level
 
 ```{r}
-mpa4_table_used <- mpa4_table_spc
+
+mpa4_table_used <- mpa4_table_sgb
 
 ```
 
@@ -73,12 +74,12 @@ spec_richness_0_05 <- tibble(sample =  colnames(mpa4_table_used),
     mutate(group = factor(group, levels = c("HD", "before_FMT", "after_FMT")))
 
 
-ggplot(data = spec_richness_0_05, 
+p_alpha <- ggplot(data = spec_richness_0_05, 
        aes(x = group, y = richness, color = group)) + 
     geom_boxplot(outlier.shape = NA) + 
     geom_jitter(height = 0, size = 2) + 
     theme_minimal() +
-    ggpubr::stat_pwc( tip.length = 0, p.adjust.method = "BH") + 
+    ggpubr::stat_pwc( tip.length = 0, p.adjust.method = "BH", hide.ns = T) + 
     scale_color_manual(values = colormap_group) +
     xlab("") + ylab("Species richness (relative abundance>=0.05%)") +
     theme(panel.grid.major.x = element_blank(), 
@@ -112,7 +113,7 @@ set.seed(12345)
 adonis_res <- adonis2(dist_beta ~ group, data = md, permutations = 1e3)
 res_permutest <- permutest(betadisper(d = dist_beta, group = md$group), permutations = 1e3)
 
-p <- plot_dt %>%
+p_beta <- plot_dt %>%
     ggplot(data=., aes(x=X1, y=X2) ) + 
     geom_point(size = 2, alpha = 0.9, pch = 21,
                aes(fill = group)) +
@@ -123,14 +124,22 @@ p <- plot_dt %>%
     xlab(paste("PC1", round(100*(pco_dt$values[1] / sum(pco_dt$values)), digits = 2), "%")) + 
     ylab(paste("PC2", round(100*(pco_dt$values[2] / sum(pco_dt$values)), digits = 2), "%")) + 
     #coord_equal() +
-    theme(legend.position = "right", 
-          legend.direction = "vertical") +
+    theme(legend.position = "bottom", 
+          legend.direction = "horizontal") +
     labs(fill = "", color = "") + 
     # adjust title
     ggtitle("Beta diversity - Aitchison distance", 
             subtitle = paste0("adonis2 R2 = ", as.character(round(adonis_res$R2[1] * 100, 2)),
                               "%;P=", as.character(round(adonis_res$`Pr(>F)`[1], 4)), 
-                              "\npermutest P=", as.character(round(res_permutest$tab["Groups", "Pr(>F)"], 4)) ))
+                              "\npermutest P=", as.character(round(res_permutest$tab["Groups", "Pr(>F)"], 4)) )) +
+     coord_equal(ratio = 1/2)
+
+```
+
+
+```{r}
+
+cowplot::plot_grid(p_alpha, p_beta, nrow = 1, rel_widths = c(1/3, 2/3))
 
 ```
 
@@ -139,7 +148,7 @@ p <- plot_dt %>%
 
 Define top species by group
 ```{r}
-TOP_N = 15
+TOP_N = 12
 
 rownames(mpa4_table_used) <- rownames(mpa4_table_used) %>% str_remove_all(pattern = ".*s__") %>%
     str_replace_all(pattern = "\\|t__", replacement = " ")
@@ -157,7 +166,7 @@ for(grp in c("before_FMT", "HD", "after_FMT")){
     top_spc_grp[[grp]] <- top_spc
 }
 
-row_split_dt <- rep(paste0("top species in ", names(top_spc_grp)), each = TOP_N) 
+row_split_dt <- rep(paste0("top species ", names(top_spc_grp)), each = TOP_N) 
 names(row_split_dt) <- unlist(top_spc_grp)
 
 ```
@@ -167,11 +176,13 @@ names(row_split_dt) <- unlist(top_spc_grp)
 ```{r}
 
 relab_dt <- mpa4_table_used[names(row_split_dt), ]
-
 # relab_dt <- relab_dt[apply(mpa4_table_used, 1, function(x) sum(x > 0.05)/ncol(mpa4_table_used)) > 0.4, ]
 
 col_fun_HM <- colorRamp2(c("white", brewer.pal(n = 7, name = "RdYlBu"), "black"),
                          breaks = c(0, 0.01, 0.1, 1, 5, 10, 20, 50, 100))
+
+col_fun_HM <- colorRamp2(c("white", brewer.pal(n = 7, name = "RdYlBu"), "black"),
+                         breaks = c(0, 0.001, 0.01, 0.1, 1, 5, 10, 20, 100))
 
 col_split_dt <- md_mpa4_group %>% select(sample, group) %>% distinct() %>% pull(group)
 names(col_split_dt) <- md_mpa4_group %>% select(sample, group) %>% distinct() %>% pull(sample)
@@ -179,10 +190,10 @@ names(col_split_dt) <- md_mpa4_group %>% select(sample, group) %>% distinct() %>
 h <- Heatmap(matrix = relab_dt, 
              col = col_fun_HM,
              
-             width = unit(0.40, "cm") * ncol(relab_dt), 
-             height = unit(0.40, "cm") * nrow(relab_dt),
+             width = unit(0.35, "cm") * ncol(relab_dt), 
+             height = unit(0.35, "cm") * nrow(relab_dt),
              
-             row_split = factor(row_split_dt, levels = c("top species in before_FMT", "top species in HD", "top species in after_FMT")),
+             row_split = factor(row_split_dt, levels = c("top species before_FMT", "top species HD", "top species after_FMT")),
              
              cluster_rows = T,
              clustering_distance_rows = "spearman", clustering_method_rows = "ward.D2",
@@ -193,14 +204,14 @@ h <- Heatmap(matrix = relab_dt,
              column_split = factor(col_split_dt, levels = c("before_FMT", "HD", "after_FMT")), 
              show_row_dend = F, show_column_dend = F,
              
-              cluster_row_slices = FALSE,
+             cluster_row_slices = FALSE,
              cluster_column_slices = FALSE,
              
              row_title_side = "right",
              row_title_gp = gpar(fontsize = 10),
              column_title_gp = gpar(fontsize = 10),
              border = T,                
-             column_gap = unit(3, "mm"),
+             gap = unit(2, "mm"),
              row_names_gp = gpar(fontsize = 8, fontface= "italic"),
              column_names_gp = gpar(fontsize = 8),
              
@@ -210,172 +221,27 @@ h <- Heatmap(matrix = relab_dt,
              column_title_rot = 0,
              row_names_side = "left", row_dend_side = "right",
              heatmap_legend_param = list(title = "Relative abundance", 
-                                         direction = "vertical", 
+                                         direction = "horizontal", 
                                          title_gp = gpar(fontsize = 10), 
                                          legend_gp = gpar(fontsize = 10),
                                          legend_width = unit(6, "cm"),
                                          break_dist = 1,
                                          at = c(0, 0.01, 0.1, 1, 10, 50, 100)))
-h
+draw(h, heatmap_legend_side = "bottom")
 
 
 ```
 
 
 
-# OLD Correlation
 
 
-## Correlation microbiome-SCENITH
-
-### First, taking everything as one for more power, not split before after FMT
+# Dorea - High donor samples
 
 ```{r}
-sample_to_keep <- intersect(colnames(mpa4_table_used), scenith_dt$sample)
-
-res <- lapply(unique(scenith_dt$type_measure), function(x){
-    # loop on measure type
-    #x = "Mitochondrial dependence"
-    tmp_scenith <- scenith_dt %>% filter(type_measure == x, sample %in% sample_to_keep)
-    tmp_mpa <- mpa4_table_used[, sample_to_keep]
-    tmp_mpa <- mpa4_table_used[, tmp_scenith$sample] # change order
-    tmp_mpa <- tmp_mpa[apply(tmp_mpa, 1, function(x) sum(x > 0.05) / ncol(tmp_mpa)) > 0.4, ]
-    # loop on cell type/ scenith column
-    res_corr <- lapply(colnames(tmp_scenith)[2:13], function(cell_type){
-        #cell_type = "B cells" 
-        # loop on SGB
-        lapply(rownames(tmp_mpa), function(sgb){
-            res <- cor.test(tmp_mpa[sgb, ], unlist(tmp_scenith[ , cell_type]), method = "spearman" )
-            return(tibble(sgb = sgb, 
-                          cell_type = cell_type, 
-                          corr = res$estimate, 
-                          p = res$p.value, 
-                          measure = x))
-        }) %>% do.call(., what = rbind)
-    }) %>% do.call(., what = rbind)
-    res_corr$padj <- p.adjust(res_corr$p, method = "BH")
-    return(res_corr)
-}) %>% do.call(., what = rbind)
-
-res$sgb <- res$sgb %>% str_remove_all(pattern = ".*s__") %>% str_replace_all(pattern = "\\|t__", replacement = " ")
-
-res %>% filter(padj < 0.1)
+# save for later analysis
+high_dorea_samples <- colnames(mpa4_table_used)[mpa4_table_used["Dorea_longicatena SGB4581", ] > 2]
+write_lines(high_dorea_samples, file = "../data/dorea_high_samples.txt")
 
 ```
-
-
-```{r}
-MEASURE <- "Mitochondrial dependence"
-#MEASURE <- "Glucose dependence"
-#MEASURE <- "PS/ATP"
-
-
-corr_dt <- res %>% filter(measure == MEASURE) %>% 
-    select(sgb, cell_type, corr) %>% 
-    pivot_wider(names_from = cell_type, values_from = corr) %>%
-    as.data.frame()
-rownames(corr_dt) <- corr_dt$sgb
-corr_dt <- corr_dt %>% select(-sgb)
-
-
-pval_dt <- res %>% filter(measure == MEASURE) %>% 
-    select(sgb, cell_type, padj) %>% 
-    pivot_wider(names_from = cell_type, values_from = padj) %>%
-    as.data.frame()
-rownames(pval_dt) <- pval_dt$sgb
-pval_dt <- pval_dt %>% select(-sgb)
-
-col_fun_HM <- colorRamp2(c("blue", "white", "red"),
-                             breaks = c(1, 0, -1))
-h <- Heatmap(matrix = corr_dt, 
-            col = col_fun_HM,
-            na_col = "white",
-                 
-            width = unit(0.30, "cm") * ncol(corr_dt), 
-            height = unit(0.30, "cm") * nrow(corr_dt),
-            
-            column_title = MEASURE,
-            column_title_gp = gpar(fontsize = 12),
-            column_title_side = "top", 
-            cluster_rows = T, 
-            show_row_dend = F,
-            cluster_columns = T, 
-            show_column_names = T,
-            show_row_names = T, row_title = NULL,
-            
-            border = T,                
-            column_gap = unit(1, "mm"), 
-            row_names_gp = gpar(fontsize = 9, fontface= "italic"),     
-            column_names_gp = gpar(fontsize = 9),
-            
-            rect_gp = gpar(col = "white", lwd = 0.5),
-            show_heatmap_legend =T,
-            row_names_side = "left", 
-            
-            cell_fun = function(j, i, x, y, width, height, fill) {
-                if(!is.na(pval_dt[i, j] )){
-                    if(pval_dt[i, j] < 0.1){
-                        color_star <- ifelse(abs(corr_dt[i, j]) > 0.5, "white", "black")
-                        grid.text("*", x, y -height/3, gp = gpar(fontsize = 12, col = color_star))
-                    }
-                }
-            })
-
-draw(h, heatmap_legend_side = "right", )
-
-```
-
-
-
-
-
-
-### Then split by group before and after FMT
-
-Splitting by group before and after FMT
-actually makes no sense to look for correlation before FMT as the alpha diversity is very low
-And the species present are actually not so prevalent afterwards 
-
-```{r}
-
-sample_to_keep <- intersect(colnames(mpa4_table_used), scenith_dt$sample)
-sample_target <- md_mpa4_group %>% filter(group == "after_FMT", sample %in% sample_to_keep) %>% pull(sample)
-
-
-res_after_FMT <- lapply(unique(scenith_dt$type_measure), function(measure){
-    # loop on measure type
-    # measure = "Mitochondrial dependence"
-    tmp_scenith <- scenith_dt %>% filter(type_measure == measure, sample %in% sample_target)
-    tmp_mpa <- mpa4_table_used[ , sample_target]
-    tmp_mpa <- mpa4_table_used[ , tmp_scenith$sample] # change order
-    tmp_mpa <- tmp_mpa[apply(tmp_mpa, 1, function(x) sum(x > 0.05) / ncol(tmp_mpa)) > 0.9, ]
-    # loop on cell type/ scenith column
-    res_corr <- lapply(colnames(tmp_scenith)[2:13], function(cell_type){
-        #cell_type = "B cells" 
-        # loop on SGB
-        lapply(rownames(tmp_mpa), function(sgb){
-            res <- cor.test(tmp_mpa[sgb, ], 
-                            tmp_scenith %>% filter(sample %in% sample_target) %>% pull(cell_type), 
-                            method = "spearman",  )
-            return(tibble(sgb = sgb, 
-                          cell_type = cell_type, 
-                          corr = res$estimate, 
-                          p = res$p.value, 
-                          measure = measure))
-        }) %>% do.call(., what = rbind)
-    }) %>% do.call(., what = rbind)
-    
-    res_corr$padj <- p.adjust(res_corr$p, method = "BH")
-    return(res_corr)
-}) %>% do.call(., what = rbind)
-
-res_after_FMT %>% filter(padj < 0.1)
-# res_after_FMT %>% filter(p < 0.05)
-
-# only 1 correlation, visualization would be useless
-
-
-```
-
-
 
