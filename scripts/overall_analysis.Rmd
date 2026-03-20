@@ -595,6 +595,17 @@ untarg_metabolites_shift <- full_join(tmp, tmp2) %>% mutate(FMT_effect = paste(r
 
 ```
 
+stats for paper
+
+```{r}
+untarg_metabolites_shift %>% 
+    group_by(bodysite) %>% mutate(nb_metabo = n()) %>%
+    group_by(bodysite, FMT_effect, nb_metabo) %>% summarise(nb_effect = n()) %>%
+    mutate(prop_effect = nb_effect/nb_metabo)
+
+
+```
+
 
 ## Visualize
 
@@ -635,8 +646,8 @@ ggplot(data = .,
     geom_point(aes(shape = GROUP_ID, fill = GROUP_ID), size = 2) + 
     scale_shape_manual(values = c("Post_FMT" = 21, "Healthy" = 22,  "Pre_FMT" = 23)) +
     scale_fill_manual(values = c("Post_FMT" = "#1f78b4", "Healthy" = "#b2df8a",  "Pre_FMT" = "#a6cee3")) +
-    theme_bw() + scale_x_log10() +
-    ylab("") + xlab("Median value (log10)") +
+    theme_bw() +
+    ylab("") + xlab("Median value") +
     facet_grid(rows = vars(FMT_effect), cols = vars(bodysite),
                scale = "free", space = "free") + 
     theme(strip.text.y.right = element_text(angle = 0), 
@@ -1216,6 +1227,7 @@ corr_dt <- dt_scenith_metabo %>%
 rownames(corr_dt) <- corr_dt$measure1
 corr_dt <- corr_dt %>% select(-measure1)
 corr_dt[is.na(corr_dt)] <- 0
+corr_dt <- t(corr_dt)
 
 pval_dt <- dt_scenith_metabo %>% 
     select(measure1, measure2, Padj) %>% 
@@ -1223,7 +1235,7 @@ pval_dt <- dt_scenith_metabo %>%
     as.data.frame()
 rownames(pval_dt) <- pval_dt$measure1
 pval_dt <- pval_dt %>% select(-measure1)
-
+pval_dt <- t(pval_dt)
 
 col_fun_HM <- colorRamp2(c("blue", "white", "red"),
                              breaks = c(1, 0, -1))
@@ -1241,9 +1253,9 @@ h <- Heatmap(matrix = corr_dt,
             show_row_dend = F,
             cluster_columns = T, 
             show_column_names = T,
-            show_row_names = T, column_title = NULL,
-            row_title_side = "right", row_title_rot = 0,
-            row_labels = structure(names = rownames(corr_dt), str_remove(rownames(corr_dt), ".*_")),
+            show_row_names = T, 
+            row_title = NULL, row_title_rot = 0,
+            column_labels = structure(names = colnames(corr_dt), str_remove(colnames(corr_dt), ".*_")),
             
             cluster_column_slices = F,
             show_column_dend = F, 
@@ -1252,8 +1264,8 @@ h <- Heatmap(matrix = corr_dt,
             clustering_method_rows = "ward.D2",
             clustering_method_columns = "ward.D2",
             
-            row_split = type_measure_metabo, 
-            column_split = type_measure_scenith,
+            row_split = type_measure_scenith, 
+            column_split = type_measure_metabo,
             
             border = T,                
             column_gap = unit(2, "mm"), row_gap = unit(2, "mm"),
@@ -1263,6 +1275,8 @@ h <- Heatmap(matrix = corr_dt,
             rect_gp = gpar(col = "white", lwd = 0.5),
             show_heatmap_legend =T,
             row_names_side = "left", 
+            column_names_side = "top", column_title_side = "bottom",
+            heatmap_legend_param = list(direction = "horizontal"),
             
             cell_fun = function(j, i, x, y, width, height, fill) {
                 if(!is.na(pval_dt[i, j] )){
@@ -1277,7 +1291,7 @@ h <- Heatmap(matrix = corr_dt,
                 }
             })
 
-draw(h, heatmap_legend_side = "right", )
+draw(h, heatmap_legend_side = "bottom", )
 
 ```
 
@@ -1667,10 +1681,11 @@ plot_scatter_focus <- function(measure1 = "Mono.classical__Glucose.dependence", 
     
     ggplot(data = tmp_dt,
            aes(x = .data[[measure1]], y = .data[[measure2]])) + 
-        ggpubr::stat_cor() + 
+        ggpubr::stat_cor(method = "spearman") + 
         geom_point(aes( fill = name), pch = 21, size = 3) + 
         scale_fill_manual(values = colormap_group) +
-        theme_bw() 
+        theme_bw() + 
+        theme(legend.position = "bottom")
 }
 
 
@@ -1731,14 +1746,14 @@ plot_dt <- lapply(c("feces", "plasma"), function(SITE){
     TARGET_ID2 <- chem_md$CHEM_ID[chem_md$CHEMICAL_NAME %in% c("5-aminovalerate", "2-piperidinone")]
     TARGET_ID <- c(TARGET_ID, TARGET_ID2)
     
-    sample_dt <- sample_dt %>%  left_join(fmt_grp_dt %>% select(sample_id = sample, FMT_group, name)) 
-    metabo_measure <- metabo_measure[sample_dt$PARENT_SAMPLE_NAME, ] %>% na.omit()
+    sample_dt <- sample_dt %>% left_join(fmt_grp_dt %>% select(sample_id = sample, FMT_group, name) %>% distinct()) 
+    metabo_measure <- metabo_measure[sample_dt$PARENT_SAMPLE_NAME, ]
     TARGET_ID <- TARGET_ID[paste0("X", TARGET_ID) %in% colnames(metabo_measure)]
     tmp <- metabo_measure[, paste0("X", TARGET_ID)]
     colnames(tmp) <-  chem_md %>% filter(CHEM_ID %in% TARGET_ID) %>% pull(CHEMICAL_NAME)
     tmp$PARENT_SAMPLE_NAME <- rownames(tmp)
     plot_dt <- tmp %>% left_join(sample_dt %>% select(PARENT_SAMPLE_NAME, name, sample_id)) %>% na.omit() %>%
-        pivot_longer(-c(PARENT_SAMPLE_NAME, name, sample_id), values_to = "chem_concentration", names_to = "chem_name")
+        pivot_longer(-c(PARENT_SAMPLE_NAME, name, sample_id), values_to = "chem_concentration", names_to = "chem_name") %>% distinct()
     plot_dt$bodysite = SITE
     return(plot_dt)
 }) %>% do.call(., what = rbind)

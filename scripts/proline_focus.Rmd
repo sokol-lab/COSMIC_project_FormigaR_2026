@@ -155,6 +155,61 @@ dt %>% group_by(sample, spc, name) %>%
 
 
 
+all on same plot
+
+```{r}
+
+
+dt_transport <- plot_overall_cpm(nr90_list_path = "../humann3_gene_families/misc_annot/nr90_list_proline_transport.txt") %>%
+    mutate(prot = "Proline Transport protein")
+dt_reductase <- plot_overall_cpm(nr90_list_path = "../humann3_gene_families/misc_annot/nr90_list_proline_reductase.txt") %>%
+    mutate(prot = "Proline Reductase")
+
+dt_all_prot <- rbind(dt_transport, dt_reductase)
+
+p1 <- dt_all_prot %>% group_by(sample, data, name, prot) %>% 
+    summarise(tot_cpm = sum(cpm)) %>%
+    
+    ggplot(data = ., aes(x = name, y = tot_cpm, color = name)) + 
+    geom_boxplot(outlier.shape = NA) + 
+    geom_jitter(height = 0) + 
+    scale_color_manual(values = colormap_group) + 
+    ggpubr::stat_pwc(tip.length = 0, hide.ns = T) +
+    facet_grid(row = vars(prot), scales = "free_y") +
+    xlab("") + ylab("CPM in metagenomics samples") +
+    theme_bw() + 
+    theme(panel.grid.major.x = element_blank(),
+          legend.position = "none",
+          strip.background = element_blank()) 
+
+
+
+
+# genus level
+p2 <-  dt_all_prot %>% group_by(sample, spc, name, prot) %>% 
+    mutate(spc = str_remove(spc, pattern = "\\..*")) %>% 
+    summarise(tot_cpm = sum(cpm)) %>% 
+    group_by(spc) %>% mutate(sum_spc = sum(tot_cpm)) %>% filter(sum_spc > 50) %>%
+    
+    ggplot(data = .,
+           aes(y = spc, x = tot_cpm, color = name)) + 
+    geom_boxplot(outlier.shape = NA) + 
+    geom_jitter(width = 0) + 
+    facet_grid(cols = vars(name), rows = vars(prot), scales = "free", space = "free_y") +
+    scale_color_manual(values = colormap_group) + 
+    #ggpubr::stat_pwc(tip.length = 0) +
+    xlab("CPM in metagenomics samples") + ylab("") +
+    theme_bw() + 
+    theme(strip.background = element_blank(), 
+          panel.grid.major.y = element_blank(),
+          legend.position = "none")
+
+
+cowplot::plot_grid(p1, p2, rel_widths = c(1,3))
+
+```
+
+
 
 
 # TODO : correlation enzyme and proline in untarg metabo value
