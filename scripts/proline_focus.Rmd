@@ -98,6 +98,8 @@ plot_overall_cpm <- function(nr90_list_path = "../humann3_gene_families/misc_ann
 
 dt <- plot_overall_cpm(nr90_list_path = "../humann3_gene_families/misc_annot/nr90_list_proline_transport.txt")
 dt <- plot_overall_cpm(nr90_list_path = "../humann3_gene_families/misc_annot/nr90_list_proline_reductase.txt") 
+dt <- plot_overall_cpm(nr90_list_path = "../humann3_gene_families/misc_annot/nr90_list_methyltrans.txt") 
+dt <- plot_overall_cpm(nr90_list_path = "../humann3_gene_families/misc_annot/nr90_methyltrans.txt") 
 
 # nothing
 # dt <- plot_overall_cpm(nr90_list_path = "../humann3_gene_families/misc_annot/nr90_list_proline_demethylase.txt") 
@@ -402,12 +404,31 @@ lapply(colnames(mat_feces), function(target){
                      input_metadata = mat_feces %>% filter(group != "before_FMT"), # remove before FMT as they have "no microbiome"
                      min_prevalence = 0.2, normalization = "NONE",
                      output = paste0("../maaslin3_results/maaslin3_res_feces_", target), 
+                     formula = paste0("~ ", target)) 
+})
+
+
+lapply(colnames(mat_feces), function(target){
+    if(target == "group") { return(NULL) }
+    resF <- maaslin3(input_data = mpa4_table_sgb, 
+                     input_metadata = mat_feces %>% filter(group != "before_FMT"), # remove before FMT as they have "no microbiome"
+                     min_prevalence = 0.2, normalization = "NONE",
+                     output = paste0("../maaslin3_results/maaslin3_res_feces_", target), 
                      formula = paste0("~ ", target, "+ group")) # group as fixed effect
     
 })
 
 
 
+lapply(colnames(mat_feces), function(target){
+    if(target == "group") { return(NULL) }
+    resF <- maaslin3(input_data = mpa4_table_sgb, 
+                     input_metadata = mat_feces , # remove before FMT as they have "no microbiome"
+                     min_prevalence = 0.2, normalization = "NONE",
+                     output = paste0("../maaslin3_results/maaslin3_res_feces_", target), 
+                     formula = paste0("~ ", target, "+ group + (1|group)")) # group as fixed effect
+    
+})
 
 
 

@@ -1,0 +1,112 @@
+---
+title: "Analysis scenith data"
+author: "Léonard Dubois, Rodrigo Formiga and Harry Sokol"
+date: "2025"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(viridis)
+library(ComplexHeatmap)
+library(RColorBrewer)
+library(circlize)
+
+rm(list = ls())
+gc()
+
+colormap_group <- c("#b2df8a", "#a6cee3", "#1f78b4") 
+names(colormap_group) <- c("HD", "before_FMT", "after_FMT") 
+
+pairwise_FMT_dt <- read_tsv(file = "../data/FMT_pairing.tsv", col_names = T, show_col_types = F)
+pairwise_FMT_dt_shotgun <- pairwise_FMT_dt %>% filter(data == "shotgun_metagenomics") %>% 
+    mutate(FMT_group = paste0("FMT_grp_", row_number())) %>% 
+    pivot_longer(cols = c("donor", "before_FMT", "after_FMT"), values_to = "sample")
+
+
+```
+
+
+
+# TARGETED
+
+```{r}
+metabolomic_dt_limits <- read_tsv(file = "../data/all_metabo_dt_limit_detection.tsv", col_names = T, show_col_types = F) 
+metabo_type <- read_tsv(file = "../data/metabolites_types.tsv", col_names = T, show_col_types = F)
+
+signif_shift_target <- read_lines(file = "../data/FMT_affected_targeted_metabo.txt")
+
+```
+
+
+
+```{r}
+
+BODYSITE = "plasma"
+
+# metabolites with signif shift
+to_keep <- signif_shift_target[grepl(BODYSITE, signif_shift_target)]
+to_keep <- to_keep %>% str_remove(pattern = paste0("targeted_metabo__", BODYSITE, "__"))
+to_keep <- to_keep %>% str_replace_all(pattern = "\\.|-", replacement = " ")
+
+
+corr_dt <- metabolomic_dt_limits %>% filter(bodysite == BODYSITE)  %>% 
+    select(-bodysite) %>% 
+    #pivot_wider(names_from = metabolite, values_from = corr) %>%
+    as.data.frame()
+rownames(corr_dt) <- corr_dt$sample
+corr_dt <- corr_dt %>% select(-sample)
+corr_dt <- scale(log10(corr_dt))
+corr_dt <- t(corr_dt)
+
+rownames(corr_dt) <- rownames(corr_dt) %>% str_replace_all(pattern = "\\.|-", replacement = " ")
+corr_dt <- corr_dt[to_keep, ]
+
+
+tmp <- pairwise_FMT_dt %>% filter(data == ifelse(BODYSITE == "feces", "shotgun_metagenomics", "blood_scenith")) %>%
+    mutate(FMT_group = paste0("FMT_grp_", row_number())) %>% 
+    pivot_longer(cols = c("donor", "before_FMT", "after_FMT"), values_to = "sample")
+
+
+samples_split <- tmp %>% pull(name)
+names(samples_split) <- tmp %>% pull(sample)
+samples_split <- samples_split[colnames(corr_dt)]
+col_fun_HM <- colorRamp2(c("blue", "white", "red"),
+                             breaks = c(max(corr_dt), 0, min(corr_dt)))
+
+h <- Heatmap(matrix = corr_dt, 
+            col = col_fun_HM,
+            na_col = "white",
+                 
+            width = unit(0.4, "cm") * ncol(corr_dt), 
+            height = unit(0.4, "cm") * nrow(corr_dt),
+            
+            clustering_distance_columns = "spearman",
+            clustering_distance_rows = "spearman",
+
+            column_title_gp = gpar(fontsize = 10),
+            column_title_side = "top", 
+            cluster_rows = T, 
+            show_row_dend = F,
+            cluster_columns = T,
+            show_column_dend = FALSE,
+            show_column_names = F,
+            show_row_names = T,
+            row_title = NULL, 
+            
+            column_split = samples_split,
+            
+            border = T,                
+            column_gap = unit(1, "mm"), 
+            row_names_gp = gpar(fontsize = 9),     
+
+            rect_gp = gpar(col = "white", lwd = 0.5),
+            show_heatmap_legend =T,
+            row_names_side = "left")
+
+draw(h, heatmap_legend_side = "right", )
+
+```
+
