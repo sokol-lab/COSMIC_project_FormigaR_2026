@@ -1,7 +1,7 @@
 ---
 title: "Analysis scenith data"
 author: "Léonard Dubois, Rodrigo Formiga and Harry Sokol"
-date: "2025"
+date: "2026"
 output: html_document
 ---
 
@@ -10,7 +10,6 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
 library(phyloseq)
-#library(microViz)
 library(viridis)
 library(vegan)
 library(ggsignif)
@@ -487,6 +486,7 @@ tmp <- read_tsv(file = "../data/FMT_pairing.tsv", col_names = T, show_col_types 
 samples_split <- tmp %>% pull(name)
 names(samples_split) <- tmp %>% pull(sample)
 samples_split <- samples_split[colnames(mat_dt)]
+samples_split <- factor(samples_split, levels = c("donor", "before_FMT", "after_FMT"))
 
 metabo_split <- to_keep$FMT_effect
 names(metabo_split) <- to_keep$metabolites
@@ -494,12 +494,12 @@ names(metabo_split) <- to_keep$metabolites
 col_fun_HM <- colorRamp2(c("blue", "white", "red"),
                              breaks = c(max(mat_dt), 0, min(mat_dt)))
 
-h <- Heatmap(matrix = mat_dt, 
+h <- Heatmap(matrix = mat_dt[, names(samples_split)], 
             col = col_fun_HM,
             na_col = "white",
                  
-            width = unit(0.35, "cm") * ncol(mat_dt), 
-            height = unit(0.35, "cm") * nrow(mat_dt),
+            width = unit(0.15, "cm") * ncol(mat_dt), 
+            height = unit(0.3, "cm") * nrow(mat_dt), 
             
             clustering_distance_columns = "spearman",
             clustering_distance_rows = "spearman",
@@ -516,7 +516,7 @@ h <- Heatmap(matrix = mat_dt,
             row_title_rot = 0,
 
             column_split = samples_split,
-            row_split = metabo_split,
+            row_split = metabo_split, cluster_column_slices = F,
             
             border = T,                
             column_gap = unit(1, "mm"), 
@@ -526,7 +526,7 @@ h <- Heatmap(matrix = mat_dt,
             show_heatmap_legend =T,
             row_names_side = "left")
 
-draw(h, heatmap_legend_side = "right", )
+draw(h, heatmap_legend_side = "right")
 
 ```
 
@@ -755,6 +755,9 @@ mat_dt <- scale(mat_dt)
 samples_split <- plasma_keep %>% distinct(sample_id, GROUP_ID) %>% pull(GROUP_ID) 
 names(samples_split) <- plasma_keep %>% distinct(sample_id, GROUP_ID) %>% pull(sample_id)
 samples_split <- samples_split[colnames(mat_dt)]
+samples_split <- factor(samples_split, levels = c("Healthy", "Pre_FMT", "Post_FMT"))
+
+
 
 metabo_split <- plasma_keep %>% distinct(chem_name, FMT_effect) %>% pull(FMT_effect) 
 names(metabo_split) <- plasma_keep %>% distinct(chem_name, FMT_effect) %>% pull(chem_name)
@@ -768,7 +771,7 @@ h <- Heatmap(matrix = mat_dt,
             col = col_fun_HM,
             na_col = "white",
                  
-            width = unit(0.3, "cm") * ncol(mat_dt), 
+            width = unit(0.15, "cm") * ncol(mat_dt), 
             height = unit(0.3, "cm") * nrow(mat_dt),
             
             clustering_distance_columns = "spearman",
@@ -783,9 +786,8 @@ h <- Heatmap(matrix = mat_dt,
             show_column_names = F,
             show_row_names = T,
             row_title_side = "right", row_title_rot = 0,
-            #row_title = , 
-            
-            column_split = samples_split,
+
+            column_split = samples_split, cluster_column_slices = F,
             row_split = metabo_split,
             
             border = T,                
@@ -796,7 +798,7 @@ h <- Heatmap(matrix = mat_dt,
             show_heatmap_legend =T,
             row_names_side = "left")
 
-draw(h, heatmap_legend_side = "right", )
+draw(h, heatmap_legend_side = "right")
 
 
 ```
@@ -812,6 +814,10 @@ names(mapping_names_untarg_feces) <- feces_sample_metadata$PARENT_SAMPLE_NAME
 feces_keep <- feces_log_data
 rownames(feces_keep) <- mapping_names_untarg_feces[rownames(feces_keep)]
 metabo_feces_keep <- untarg_metabolites_shift %>% filter(bodysite == "feces", FMT_effect != "NS") %>% pull(metabolites)
+# or focus on normal effect
+#metabo_feces_keep <- untarg_metabolites_shift %>% filter(bodysite == "feces", FMT_effect %in% c("depleted normal", "restored normal")) %>% pull(metabolites)
+
+
 metabo_feces_keep <- paste0("X", metabo_feces_keep)
 feces_keep <- feces_keep[, metabo_feces_keep]
 
@@ -869,6 +875,8 @@ mat_dt <- scale(mat_dt)
 samples_split <- feces_keep %>% distinct(sample_id, GROUP_ID) %>% pull(GROUP_ID) 
 names(samples_split) <- feces_keep %>% distinct(sample_id, GROUP_ID) %>% pull(sample_id) %>% str_replace(pattern = "-", "\\.")
 samples_split <- samples_split[colnames(mat_dt)]
+samples_split <- factor(samples_split, levels = c("Healthy", "Pre_FMT", "Post_FMT"))
+
 
 metabo_split <- feces_keep %>% distinct(chem_name, FMT_effect) %>% pull(FMT_effect) 
 names(metabo_split) <- feces_keep %>% distinct(chem_name, FMT_effect) %>% pull(chem_name)
@@ -882,7 +890,7 @@ h <- Heatmap(matrix = mat_dt,
             col = col_fun_HM,
             na_col = "white",
                  
-            width = unit(0.3, "cm") * ncol(mat_dt), 
+            width = unit(0.15, "cm") * ncol(mat_dt), 
             height = unit(0.3, "cm") * nrow(mat_dt),
             
             clustering_distance_columns = "spearman",
@@ -898,7 +906,7 @@ h <- Heatmap(matrix = mat_dt,
             show_row_names = T,
             row_title_side = "right", row_title_rot = 0,
 
-            column_split = samples_split,
+            column_split = samples_split, cluster_column_slices = F,
             row_split = metabo_split,
             
             border = T,                
@@ -909,8 +917,7 @@ h <- Heatmap(matrix = mat_dt,
             show_heatmap_legend =T,
             row_names_side = "left")
 
-draw(h, heatmap_legend_side = "right", )
-
+draw(h, heatmap_legend_side = "right")
 
 ```
 
@@ -1265,9 +1272,8 @@ untarg_metabolites_shift <- read_tsv(file = "../data/untarg_metabolites_shift.ts
 
 # filter first metabo x SCENITH : corr1 
 #corr_1 <- corr_res_type %>% filter(measure1 %in% c(target_metabo, target_metabo_untarg) | measure2 %in% c(target_metabo, target_metabo_untarg))
-corr_1 <- corr_res_type %>% filter(measure1 %in% c(target_metabo_untarg) | measure2 %in% c(target_metabo_untarg))
-
-corr_1 <- corr_1 %>% filter(type1 == "SCENITH_measure" | type2 == "SCENITH_measure")
+corr_1 <- corr_res_type %>% filter(measure1 %in% c(target_metabo_untarg) | measure2 %in% c(target_metabo_untarg)) %>%
+    filter(type1 == "SCENITH_measure" | type2 == "SCENITH_measure")
 # focus monocytes ?
 #corr_1 <- corr_1 %>% filter(grepl(measure1, pattern = "Mono") | grepl(measure2, pattern = "Mono"))
 corr_1 <- corr_1 %>% group_by(type1) %>% mutate(Padj = p.adjust(p, method = "BH")) %>% ungroup() # recompute correction pvalue
@@ -1419,12 +1425,13 @@ res_taxa_proline
 ## Visualize heatmap correlation ALL METABO x SCENITH
 
 ```{r}
-corr_res_type <- read_tsv(file = "../data/correlation_results_all.tsv", col_names = T, show_col_types = F)
+#corr_res_type <- read_tsv(file = "../data/correlation_results_all.tsv", col_names = T, show_col_types = F)
 corr_res_type <- read_tsv(file = "../data/correlation_1_signif_metabo_scenith.tsv", col_names = T, show_col_types = F)
 
-corr_res_type <- corr_1
 
 TARG1 = c("feces_untarg_metabo", "plasma_untarg_metabo", "targeted_metabo__plasma", "targeted_metabo__feces")
+# TARG1 = c("plasma_untarg_metabo")
+
 TARG2 = "SCENITH_measure"
 TARG = c(TARG1, TARG2)
 
@@ -1436,6 +1443,7 @@ tmp_switch <- dt_scenith_metabo[to_inverse, "measure1"]
 dt_scenith_metabo[to_inverse, "measure1"] <- dt_scenith_metabo[to_inverse, "measure2"]
 dt_scenith_metabo[to_inverse, "measure2"] <- tmp_switch
 
+# put scenith always in measure 2
 tmp_switch <- dt_scenith_metabo[to_inverse, "type1"]
 dt_scenith_metabo[to_inverse, "type1"] <- dt_scenith_metabo[to_inverse, "type2"]
 dt_scenith_metabo[to_inverse, "type2"] <- tmp_switch
@@ -1443,9 +1451,11 @@ dt_scenith_metabo[to_inverse, "type2"] <- tmp_switch
 dt_scenith_metabo$measure2 <- str_replace_all(dt_scenith_metabo$measure2, "__", " ")
 dt_scenith_metabo <- na.omit(dt_scenith_metabo) 
 
+# simplify HM and remove PS ATP
+# dt_scenith_metabo <- dt_scenith_metabo[!grepl("ATP", dt_scenith_metabo$measure2), ]
 
 # keep only measure with at least one corr
-measure_signif <- dt_scenith_metabo %>% filter(Padj < 0.1) %>% select(measure1, measure2)
+measure_signif <- dt_scenith_metabo %>% filter(Padj < 0.2) %>% select(measure1, measure2) # %>% filter(n() > 1, .by = measure1)
 measure_signif <- unique(c(measure_signif$measure1, measure_signif$measure2))
 dt_scenith_metabo <- dt_scenith_metabo %>% filter(measure1 %in% measure_signif & measure2 %in% measure_signif)
 
@@ -1484,7 +1494,8 @@ ha = HeatmapAnnotation(FMT_effect = FMT_eff[colnames(corr_dt)],
                        col=list(FMT_effect = c("depleted normal"="#c2a5cf",
                                 "depleted over"="#7b3294",
                                 "restored normal"="#a6dba0",
-                                "restored over"="#008837")))
+                                "restored over"="#008837", 
+                                "restored partial" = "lightgrey")))
 
 col_fun_HM <- colorRamp2(c("blue", "white", "red"),
                              breaks = c(1, 0, -1))
@@ -1493,8 +1504,8 @@ h <- Heatmap(matrix = corr_dt,
             na_col = "white",
             top_annotation = ha,
                  
-            width = unit(0.45, "cm") * ncol(corr_dt), 
-            height = unit(0.45, "cm") * nrow(corr_dt),
+            width = unit(0.4, "cm") * ncol(corr_dt), 
+            height = unit(0.4, "cm") * nrow(corr_dt),
             
             name = "SCENITH x Metabolites",
             column_title_gp = gpar(fontsize = 12),
@@ -1541,6 +1552,10 @@ h <- Heatmap(matrix = corr_dt,
                     if(pval_dt[i, j] < 0.1){
                         color_star <- ifelse(abs(corr_dt[i, j]) > 0.7, "white", "black")
                         grid.text("°", x, y -height/3, gp = gpar(fontsize = 14, col = color_star))
+                    }else
+                    if(pval_dt[i, j] < 0.2){
+                        color_star <- ifelse(abs(corr_dt[i, j]) > 0.7, "white", "black")
+                        grid.text(".", x, y +height/3, gp = gpar(fontsize = 14, col = color_star))
                     }
                 }
             })
@@ -1548,6 +1563,147 @@ h <- Heatmap(matrix = corr_dt,
 draw(h, heatmap_legend_side = "bottom", )
 
 ```
+
+
+For paper, rotate and remove PS ATP
+
+```{r}
+
+#corr_res_type <- read_tsv(file = "../data/correlation_results_all.tsv", col_names = T, show_col_types = F)
+corr_res_type <- read_tsv(file = "../data/correlation_1_signif_metabo_scenith.tsv", col_names = T, show_col_types = F)
+TARG1 = c("feces_untarg_metabo", "plasma_untarg_metabo", "targeted_metabo__plasma", "targeted_metabo__feces")
+TARG2 = "SCENITH_measure"
+TARG = c(TARG1, TARG2)
+
+dt_scenith_metabo <- corr_res_type %>% filter(type1 %in% TARG & type2 %in% TARG)
+dt_scenith_metabo <- dt_scenith_metabo %>% filter(type1 == TARG2 |  type2 == TARG2)
+
+to_inverse <- which(dt_scenith_metabo$type1 == TARG2)
+tmp_switch <- dt_scenith_metabo[to_inverse, "measure1"]
+dt_scenith_metabo[to_inverse, "measure1"] <- dt_scenith_metabo[to_inverse, "measure2"]
+dt_scenith_metabo[to_inverse, "measure2"] <- tmp_switch
+
+# put scenith always in measure 2
+tmp_switch <- dt_scenith_metabo[to_inverse, "type1"]
+dt_scenith_metabo[to_inverse, "type1"] <- dt_scenith_metabo[to_inverse, "type2"]
+dt_scenith_metabo[to_inverse, "type2"] <- tmp_switch
+
+dt_scenith_metabo$measure2 <- str_replace_all(dt_scenith_metabo$measure2, "__", " ")
+dt_scenith_metabo <- na.omit(dt_scenith_metabo) 
+
+# simplify HM and remove PS ATP
+dt_scenith_metabo <- dt_scenith_metabo[!grepl("ATP", dt_scenith_metabo$measure2), ]
+
+# keep only measure with at least one corr
+measure_signif <- dt_scenith_metabo %>% filter(Padj < 0.2) %>% select(measure1, measure2) # %>% filter(n() > 1, .by = measure1)
+measure_signif <- unique(c(measure_signif$measure1, measure_signif$measure2))
+dt_scenith_metabo <- dt_scenith_metabo %>% filter(measure1 %in% measure_signif & measure2 %in% measure_signif)
+
+corr_dt <- dt_scenith_metabo %>% 
+    select(measure1, measure2, rho) %>% 
+    pivot_wider(names_from = measure2, values_from = rho) %>%
+    as.data.frame()
+rownames(corr_dt) <- corr_dt$measure1
+corr_dt <- corr_dt %>% select(-measure1)
+corr_dt[is.na(corr_dt)] <- 0
+
+pval_dt <- dt_scenith_metabo %>% 
+    select(measure1, measure2, Padj) %>% 
+    pivot_wider(names_from = measure2, values_from = Padj) %>%
+    as.data.frame()
+rownames(pval_dt) <- pval_dt$measure1
+pval_dt <- pval_dt %>% select(-measure1)
+
+
+# prepare Heatmap
+# split rows
+type_measure_scenith <- unique(dt_scenith_metabo$measure2) %>% str_remove(pattern = ".* ") 
+names(type_measure_scenith) <- unique(dt_scenith_metabo$measure2)
+# split columns
+tmp = dt_scenith_metabo %>% distinct(type1, measure1)
+type_measure_metabo <- tmp$type1
+names(type_measure_metabo) <- tmp$measure1
+# HM top anotaiton
+untarg_metabolites_shift <- read_tsv(file = "../data/untarg_metabolites_shift.tsv", col_names = T, show_col_types = F)
+FMT_eff <- untarg_metabolites_shift %>% filter(chem_name %in% rownames(corr_dt)) %>% pull(FMT_effect)
+names(FMT_eff) <- untarg_metabolites_shift %>% filter(chem_name %in% rownames(corr_dt)) %>% pull(chem_name)
+
+ha = rowAnnotation(FMT_effect = FMT_eff[rownames(corr_dt)], 
+                       col=list(FMT_effect = c("depleted normal"="#c2a5cf",
+                                "depleted over"="#7b3294",
+                                "restored normal"="#a6dba0",
+                                "restored over"="#008837", 
+                                "restored partial" = "lightgrey")))
+
+col_fun_HM <- colorRamp2(c("blue", "white", "red"),
+                             breaks = c(1, 0, -1))
+h <- Heatmap(matrix = corr_dt, 
+            col = col_fun_HM,
+            na_col = "white",
+            left_annotation = ha,
+                 
+            width = unit(0.4, "cm") * ncol(corr_dt), 
+            height = unit(0.4, "cm") * nrow(corr_dt),
+            
+            name = "SCENITH x Metabolites",
+            column_title_gp = gpar(fontsize = 12),
+            column_names_rot = 45,
+            cluster_rows = T, 
+            show_row_dend = F,
+            cluster_columns = T, 
+            show_column_names = T,
+            show_row_names = T, 
+            row_title = NULL, row_title_rot = 0,
+            column_labels = structure(names = colnames(corr_dt), str_remove(colnames(corr_dt), ".*_")),
+            
+            cluster_column_slices = F,
+            show_column_dend = F, 
+            clustering_distance_rows = "spearman",
+            clustering_distance_columns = "spearman",
+            clustering_method_rows = "ward.D2",
+            clustering_method_columns = "ward.D2",
+            
+            row_split = type_measure_metabo, 
+            column_split = type_measure_scenith,
+            
+            border = T,                
+            column_gap = unit(2, "mm"), row_gap = unit(2, "mm"),
+            row_names_gp = gpar(fontsize = 9),     
+            column_names_gp = gpar(fontsize = 9),
+            
+            rect_gp = gpar(col = "white", lwd = 0.5),
+            show_heatmap_legend =T,
+            row_names_side = "left", 
+            column_names_side = "top", column_title_side = "bottom",
+            heatmap_legend_param = list(direction = "horizontal"),
+            
+            cell_fun = function(j, i, x, y, width, height, fill) {
+                if(!is.na(pval_dt[i, j] )){
+                    if(pval_dt[i, j] < 0.01){
+                        color_star <- ifelse(abs(corr_dt[i, j]) > 0.7, "white", "black")
+                        grid.text("**", x, y -height/3, gp = gpar(fontsize = 14, col = color_star))
+                    } else
+                    if(pval_dt[i, j] < 0.05){
+                        color_star <- ifelse(abs(corr_dt[i, j]) > 0.7, "white", "black")
+                        grid.text("*", x, y -height/3, gp = gpar(fontsize = 14, col = color_star))
+                    }else
+                    if(pval_dt[i, j] < 0.1){
+                        color_star <- ifelse(abs(corr_dt[i, j]) > 0.7, "white", "black")
+                        grid.text("°", x, y -height/3, gp = gpar(fontsize = 14, col = color_star))
+                    }else
+                    if(pval_dt[i, j] < 0.2){
+                        color_star <- ifelse(abs(corr_dt[i, j]) > 0.7, "white", "black")
+                        grid.text(".", x, y +height/3, gp = gpar(fontsize = 14, col = color_star))
+                    }
+                }
+            })
+
+draw(h, heatmap_legend_side = "bottom", )
+
+
+```
+
+
 
 ## OLD - Targeted set 1 SCENITH x METABO 
 
@@ -1936,8 +2092,8 @@ plot_scatter_focus <- function(measure1 = "Mono.classical__Glucose.dependence", 
     ggplot(data = tmp_dt,
            aes(x = .data[[measure1]], y = .data[[measure2]])) + 
         ggpubr::stat_cor(method = "spearman") + 
-        geom_point(aes( fill = name), pch = 21, size = 3) + 
-        stat_smooth(se = F, method = "loess", color = "grey") + 
+        geom_point(aes( fill = name), pch = 21, size = 2) + 
+        stat_smooth(se = T, method = "lm", color = "grey") + 
         scale_fill_manual(values = colormap_group) +
         theme_bw() + 
         theme(legend.position = "bottom")
@@ -1957,10 +2113,7 @@ plot_scatter_focus("Mono.intermediate__Mitochondrial.dependence",  "targeted_met
 
 
 
-# 15-05 pro and Npro with Mono classical Gluc and Mitoch
-cowplot::plot_grid(plotlist = list(plot_scatter_focus("Mono.classical__Glucose.dependence", "feces_untarg_proline" ),
-                                   plot_scatter_focus("Mono.classical__Glucose.dependence", "feces_untarg_N-methylproline" ),
-                                   plot_scatter_focus("Mono.classical__Mitochondrial.dependence", "feces_untarg_proline" ),
+corr_plot_focus <- cowplot::plot_grid(plotlist = list(plot_scatter_focus("Mono.classical__Mitochondrial.dependence", "feces_untarg_proline" ),
                                    plot_scatter_focus("Mono.classical__Mitochondrial.dependence", "feces_untarg_N-methylproline" ), 
                                    plot_scatter_focus("feces_untarg_N-methylproline", "feces_untarg_proline" )), 
                    nrow = 1)
@@ -2005,10 +2158,11 @@ plot_dt <- lapply(c("feces", "plasma"), function(SITE){
         chem_md <- plasma_chemical_metadata
         fmt_grp_dt <- pairwise_FMT_dt %>% filter(data == "blood_scenith")
     }
-    TARGET_ID <- chem_md$CHEM_ID[grepl(chem_md$CHEMICAL_NAME, pattern ="prolin")]
-    TARGET_ID2 <- chem_md$CHEM_ID[chem_md$CHEMICAL_NAME %in% c("5-aminovalerate", "2-piperidinone")]
-    TARGET_ID <- c(TARGET_ID, TARGET_ID2)
-    TARGET_ID <-   chem_md$CHEM_ID[chem_md$CHEMICAL_NAME %in% c("proline", "N-methylproline", "5-aminovalerate", "2-piperidinone", "prolylhydroxyproline")]
+    #TARGET_ID <- chem_md$CHEM_ID[grepl(chem_md$CHEMICAL_NAME, pattern ="prolin")]
+    #TARGET_ID2 <- chem_md$CHEM_ID[chem_md$CHEMICAL_NAME %in% c("5-aminovalerate", "2-piperidinone")]
+    #TARGET_ID <- c(TARGET_ID, TARGET_ID2)
+    #TARGET_ID <-   chem_md$CHEM_ID[chem_md$CHEMICAL_NAME %in% c("proline", "N-methylproline", "5-aminovalerate", "2-piperidinone", "prolylhydroxyproline")]
+    TARGET_ID <-   chem_md$CHEM_ID[chem_md$CHEMICAL_NAME %in% c("proline", "N-methylproline")]
     
     sample_dt <- sample_dt %>% left_join(fmt_grp_dt %>% select(sample_id = sample, FMT_group, name) %>% distinct()) 
     metabo_measure <- metabo_measure[sample_dt$PARENT_SAMPLE_NAME, ]
@@ -2025,48 +2179,30 @@ plot_dt <- lapply(c("feces", "plasma"), function(SITE){
 
 plot_dt$name <- factor(plot_dt$name, levels = c("before_FMT",  "donor", "after_FMT"))
 
-ggplot(data = plot_dt,
-       aes(x = name, y = chem_concentration)) + 
-    geom_boxplot(outlier.shape = NA) + 
-    ggpubr::stat_pwc(tip.length = 0, p.adjust.method = "BH", p.adjust.by = "panel", hide.ns = T) +
-    geom_jitter(height = 0, width = 0.3)  +
-    theme_bw() + ylab("Normalized concentration") + xlab("") +
-    facet_grid(cols = vars(chem_name), rows = vars(bodysite), scales = "free_y") +
-    theme(axis.text.x = element_text(angle = 90))
-
-# feces only
-ggplot(data = plot_dt %>% filter(bodysite == "feces"),
-       aes(x = name, y = chem_concentration, colour = name)) + 
+plot_proline_levels <- ggplot(data = plot_dt ,
+                              aes(x = name, y = chem_concentration, colour = name)) + 
     geom_boxplot(outlier.shape = NA) + 
     ggpubr::stat_pwc(tip.length = 0, p.adjust.method = "BH", p.adjust.by = "panel", hide.ns = T) +
     geom_jitter(height = 0, width = 0.3)  +
     theme_bw() + ylab("Normalized concentration") + xlab("") +
     scale_color_manual(values = colormap_group) + 
-    facet_wrap(~chem_name, nrow = 2, scales = "free_y") +
+    facet_wrap(bodysite~chem_name, nrow = 1, scales = "free_y") +
     theme(axis.text.x = element_text(angle = 90), 
           strip.background = element_blank(), 
           panel.grid.major.x = element_blank(), 
           legend.position = "none")
 
 
+```
 
-# test high dorea
-high_dorea_samples <- read_lines(file = "../data/dorea_high_samples.txt")
-plot_dt <- plot_dt %>% mutate(has_high_dorea = ifelse(sample_id %in% high_dorea_samples, "yes", "no"))
 
-ggplot(data = plot_dt %>% filter(bodysite == "feces"),
-       aes(x = name, y = chem_concentration)) + 
-    geom_boxplot(outlier.shape = NA) + 
-    ggpubr::stat_pwc(tip.length = 0, p.adjust.method = "BH", p.adjust.by = "panel", hide.ns = T) +
-    geom_jitter(aes(fill = has_high_dorea),
-                height = 0, width = 0.3 , pch = 21, size = 3 )  +
-    theme_bw() + ylab("Normalized concentration") + xlab("") +
-    facet_wrap(~chem_name, nrow = 3, scales = "free_y") +
-    theme(axis.text.x = element_text(angle = 90))
+
+```{r}
+
+cowplot::plot_grid(corr_plot_focus, plot_proline_levels, nrow = 2)
 
 
 ```
-
 
 
 

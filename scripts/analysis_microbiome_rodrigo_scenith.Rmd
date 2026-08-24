@@ -79,7 +79,8 @@ p_alpha <- ggplot(data = spec_richness_0_05,
     geom_boxplot(outlier.shape = NA) + 
     geom_jitter(height = 0, size = 2) + 
     theme_minimal() +
-    ggpubr::stat_pwc( tip.length = 0, p.adjust.method = "BH", hide.ns = T) + 
+    ggpubr::stat_compare_means() + 
+    ggpubr::stat_pwc( tip.length = 0, p.adjust.method = "BH", hide.ns = T, method = "dunn_test") + 
     scale_color_manual(values = colormap_group) +
     xlab("") + ylab("Species richness (relative abundance>=0.05%)") +
     theme(panel.grid.major.x = element_blank(), 
@@ -131,17 +132,10 @@ p_beta <- plot_dt %>%
     ggtitle("Beta diversity - Aitchison distance", 
             subtitle = paste0("adonis2 R2 = ", as.character(round(adonis_res$R2[1] * 100, 2)),
                               "%;P=", as.character(round(adonis_res$`Pr(>F)`[1], 4)), 
-                              "\npermutest P=", as.character(round(res_permutest$tab["Groups", "Pr(>F)"], 4)) )) +
-     coord_equal(ratio = 1/2)
+                              " ; permutest P=", as.character(round(res_permutest$tab["Groups", "Pr(>F)"], 4)) ))
 
 ```
 
-
-```{r}
-
-cowplot::plot_grid(p_alpha, p_beta, nrow = 1, rel_widths = c(1/3, 2/3))
-
-```
 
 
 # Pairwise dist between recipient and donor
@@ -166,18 +160,27 @@ dist_long <- dist_long %>% rowwise() %>% mutate(type_pair = paste(sort(c(sample_
 
 
 
-ggplot(data = dist_long %>% filter(type_pair == "after_FMT__donor"), 
+p_donor_ait <- ggplot(data = dist_long %>% filter(type_pair == "after_FMT__donor"), 
        aes(y = distance, x = same_FMT_grp)) + 
     geom_boxplot(outlier.shape = NA) + 
     ggpubr::stat_compare_means(method.args = list(alternative = "greater")) +
     geom_jitter(height = 0, width = 0.3, size = 1.5, alpha = 0.7) + 
     scale_x_discrete(labels=c("diff_grp"="Other donors", "same_grp"="Respective donor")) +
     xlab("") + ylab("Aitchison distance\nAfter FMT samples compared to donors") +
-    theme_bw() + 
+    theme_minimal() + 
     theme(panel.grid.major.x = element_blank())
 
 
 ```
+
+
+
+```{r}
+
+cowplot::plot_grid(p_alpha, p_donor_ait, nrow = 1)
+
+```
+
 
 
 # Heatmap of composition
@@ -272,12 +275,5 @@ draw(h, heatmap_legend_side = "bottom")
 
 
 
-# Dorea - High donor samples
 
-```{r}
-# save for later analysis
-high_dorea_samples <- colnames(mpa4_table_used)[mpa4_table_used["Dorea_longicatena SGB4581", ] > 2]
-write_lines(high_dorea_samples, file = "../data/dorea_high_samples.txt")
-
-```
 

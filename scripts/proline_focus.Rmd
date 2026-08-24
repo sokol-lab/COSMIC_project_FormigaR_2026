@@ -118,20 +118,6 @@ dt %>% group_by(sample, data, name) %>%
     theme(panel.grid.major.x = element_blank(), legend.position = "none")
 
 
-dt %>% group_by(sample, spc, name) %>% 
-    summarise(tot_cpm = sum(cpm)) %>% 
-    group_by(spc) %>% mutate(sum_spc = sum(tot_cpm)) %>% filter(sum_spc > 20) %>%
-    
-    ggplot(data = .,
-       aes(y = name, x = tot_cpm)) + 
-    geom_boxplot(outlier.shape = NA) + 
-    geom_jitter(width = 0) + 
-    facet_grid(vars(spc)) +
-    #ggpubr::stat_pwc(tip.length = 0) +
-    theme_bw() + ggtitle("CPM") + 
-    theme(strip.text.y.right = element_text(angle = 0), 
-          strip.background = element_blank())
-
 # genus level
 dt %>% group_by(sample, spc, name) %>% 
      mutate(spc = str_remove(spc, pattern = "\\..*")) %>% 
@@ -213,13 +199,204 @@ cowplot::plot_grid(p1, p2, rel_widths = c(1,3))
 
 
 
+Figure Supp for paper
+
+```{r}
+
+
+dt_transport <- plot_overall_cpm(nr90_list_path = "../humann3_gene_families/misc_annot/nr90_list_proline_transport.txt") %>%
+    mutate(prot = "Proline Transport protein")
+dt_reductase <- plot_overall_cpm(nr90_list_path = "../humann3_gene_families/misc_annot/nr90_list_proline_reductase.txt") %>%
+    mutate(prot = "Proline Reductase")
+
+dt_all_prot <- do.call(list(
+    plot_overall_cpm(nr90_list_path = "../humann3_gene_families/misc_annot/nr90_list_proline_transport.txt") %>%
+    mutate(prot = "Proline Transport protein"), 
+     plot_overall_cpm(nr90_list_path = "../humann3_gene_families/misc_annot/nr90_list_proline_reductase.txt") %>%
+    mutate(prot = "Proline Reductase"), 
+     #plot_overall_cpm(nr90_list_path = "../humann3_gene_families/misc_annot/proA.txt") %>% mutate(prot = "ProA"), 
+     plot_overall_cpm(nr90_list_path = "../humann3_gene_families/misc_annot/PC5DH.txt") %>% mutate(prot = "PC5DH"), 
+     plot_overall_cpm(nr90_list_path = "../humann3_gene_families/misc_annot/gamma_glut_kinase_proB.txt") %>%
+    mutate(prot = "ProB")
+), what =rbind)
+
+dt_all_prot %>% write_tsv(file = "../data/humann3_data_for_supp_fig.tsv", col_names = T)
+
+p1 <- dt_all_prot %>% group_by(sample, data, name, prot) %>% 
+    summarise(tot_cpm = sum(cpm)) %>%
+    
+    ggplot(data = ., aes(x = name, y = tot_cpm, color = name)) + 
+    geom_boxplot(outlier.shape = NA) + 
+    geom_jitter(height = 0) + 
+    scale_color_manual(values = colormap_group) + 
+    ggpubr::stat_pwc(tip.length = 0, hide.ns = T) +
+    facet_grid(row = vars(prot), scales = "free_y") +
+    xlab("") + ylab("CPM in metagenomics samples") +
+    theme_bw() + 
+    theme(panel.grid.major.x = element_blank(),
+          legend.position = "none",
+          strip.background = element_blank()) 
+
+
+# genus level
+p2 <-  dt_all_prot %>% group_by(sample, spc, name, prot) %>% 
+    mutate(spc = str_remove(spc, pattern = "\\..*")) %>% 
+    summarise(tot_cpm = sum(cpm)) %>% 
+    group_by(spc) %>% mutate(sum_spc = sum(tot_cpm)) %>% filter(sum_spc > 50) %>%
+    
+    ggplot(data = .,
+           aes(y = spc, x = tot_cpm, color = name)) + 
+    geom_boxplot(outlier.shape = NA) + 
+    geom_jitter(width = 0) + 
+    facet_grid(cols = vars(name), rows = vars(prot), scales = "free", space = "free_y") +
+    scale_color_manual(values = colormap_group) + 
+    #ggpubr::stat_pwc(tip.length = 0) +
+    xlab("CPM in metagenomics samples") + ylab("") +
+    theme_bw() + 
+    theme(strip.background = element_blank(), 
+          panel.grid.major.y = element_blank(),
+          legend.position = "none")
+
+
+cowplot::plot_grid(p1, p2, rel_widths = c(1,3))
+
+```
+
+
+
+
+screen all prot families provided by Rodrigo
+
+```{r}
+
+humann_dt_all_targets <- lapply(list.files(path = "../humann3_gene_families/misc_annot/", full.names = T), 
+       function(fpath){
+           if(grepl(pattern = "(grep)|(regex)|(bz2)", fpath)){return(NULL)}
+           #print(fpath)
+           return(plot_overall_cpm(nr90_list_path = fpath) %>%
+                      mutate(prot = str_remove_all(basename(fpath), pattern = "\\..*")))
+       })
+
+humann_dt_all_targets <- do.call(humann_dt_all_targets, what = rbind)
+
+write_tsv(humann_dt_all_targets, file = "../data/humann_dt_all_targets.tsv", col_names = T)
+
+
+pdf("../plots/humann_cpm_proline_enzymes", width = 15, height = 10)
+
+for(TARGET in unique(humann_dt_all_targets$prot) ){
+    
+    tmp <- humann_dt_all_targets %>% filter(prot == TARGET)
+    if(length(unique(tmp$name)) != 3){
+        next
+    }
+    print(TARGET)
+    
+    p1 <- tmp %>% group_by(sample, data, name, prot) %>% 
+        summarise(tot_cpm = sum(cpm)) %>%
+        ggplot(data = ., aes(x = name, y = tot_cpm, color = name)) + 
+        geom_boxplot(outlier.shape = NA) + 
+        geom_jitter(height = 0) + 
+        scale_color_manual(values = colormap_group) + 
+        ggpubr::stat_pwc(tip.length = 0, hide.ns = T) +
+        ggpubr::stat_kruskal_test() +
+        xlab("") + ylab(paste0(TARGET, " CPM in metagenomics samples")) +
+        theme_bw() + 
+        theme(panel.grid.major.x = element_blank(),
+              legend.position = "none",
+              strip.background = element_blank()) 
+    
+    # genus level
+    p2 <-  tmp %>% group_by(sample, spc, name, prot) %>% 
+        mutate(spc = str_remove(spc, pattern = "\\..*")) %>% 
+        summarise(tot_cpm = sum(cpm)) %>% 
+        group_by(spc) %>% mutate(sum_spc = sum(tot_cpm)) %>%
+        filter(sum_spc != 0) %>%
+        
+        ggplot(data = .,
+               aes(y = spc, x = tot_cpm, color = name)) + 
+        geom_boxplot(outlier.shape = NA) + 
+        geom_jitter(width = 0) + 
+        facet_grid(cols = vars(name), scales = "free", space = "free_y") +
+        scale_color_manual(values = colormap_group) + 
+        #ggpubr::stat_pwc(tip.length = 0) +
+        xlab(paste0(TARGET, " CPM in metagenomics samples")) + ylab("") +
+        theme_bw() + 
+        theme(strip.background = element_blank(), 
+              panel.grid.major.y = element_blank(),
+              legend.position = "none")
+    
+    print(cowplot::plot_grid(p1, p2, rel_widths = c(1,3)))
+}
+
+
+dev.off()
+
+
+```
+
+
+
+Focus proline reductase 
+
+
+```{r}
+
+fpath = "../humann3_gene_families/misc_annot/PC5DH.txt"
+#fpath = "../humann3_gene_families/misc_annot/nr90_list_proline_reductase.txt"
+humann_dt_all_targets <- plot_overall_cpm(nr90_list_path = fpath) %>%
+    mutate(prot = str_remove_all(basename(fpath), pattern = "\\..*"))
+       
+TARGET="PC5DH"
+
+p1 <- humann_dt_all_targets %>% group_by(sample, data, name, prot) %>% 
+    summarise(tot_cpm = sum(cpm)) %>%
+    ggplot(data = ., aes(x = name, y = tot_cpm, color = name)) + 
+    geom_boxplot(outlier.shape = NA) + 
+    geom_jitter(height = 0) + 
+    scale_color_manual(values = colormap_group) + 
+    ggpubr::stat_pwc(tip.length = 0, hide.ns = T) +
+    ggpubr::stat_kruskal_test() +
+    xlab("") + ylab(paste0(TARGET, " CPM in metagenomics samples")) +
+    theme_bw() + 
+    theme(panel.grid.major.x = element_blank(),
+          legend.position = "none",
+          strip.background = element_blank()) 
+
+# genus level
+p2 <-  humann_dt_all_targets %>% group_by(sample, spc, name, prot) %>% 
+    mutate(spc = str_remove(spc, pattern = "\\..*")) %>% 
+    summarise(tot_cpm = sum(cpm)) %>% 
+    group_by(spc) %>% mutate(sum_spc = sum(tot_cpm)) %>%
+    filter(sum_spc != 0) %>%
+    
+    ggplot(data = .,
+           aes(y = spc, x = tot_cpm, color = name)) + 
+    geom_boxplot(outlier.shape = NA) + 
+    geom_jitter(width = 0) + 
+    facet_grid(cols = vars(name), scales = "free", space = "free_y") +
+    scale_color_manual(values = colormap_group) + 
+    #ggpubr::stat_pwc(tip.length = 0) +
+    xlab(paste0(TARGET, " CPM in metagenomics samples")) + ylab("") +
+    theme_bw() + 
+    theme(strip.background = element_blank(), 
+          panel.grid.major.y = element_blank(),
+          legend.position = "none")
+
+print(cowplot::plot_grid(p1, p2, rel_widths = c(1,3)))
+
+
+```
+
+
+
 
 # TODO : correlation enzyme and proline in untarg metabo value
 
 
+# OLD
 
-
-# Untargeted metabo of proline and derivatives
+## Untargeted metabo of proline and derivatives
 
 ```{r}
 feces_sample_metadata <- readxl::read_xlsx(path = "../RAW_metabo_untargeted/HSAE-01-24MD+ DATA TABLES (HUMAN FECES).XLSX", sheet = 3) %>% filter(!is.na(GROUP_ID))
@@ -282,7 +459,7 @@ ggplot(data = plot_dt,
 
 
 
-# network of correlation  - Proline and derivatives
+## network of correlation  - Proline and derivatives
 
 
 ```{r}
@@ -330,7 +507,7 @@ plot(g,
 
 
 
-# Maaslin 3 models: proline and derivatives according to species relab or presence
+## Maaslin 3 models: proline and derivatives according to species relab or presence
 
 prepare data
 
